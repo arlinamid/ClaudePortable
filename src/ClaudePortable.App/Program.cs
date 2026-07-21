@@ -2,6 +2,8 @@ using System.CommandLine;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using ClaudePortable.App.Commands;
+using ClaudePortable.App.Localization;
+using ClaudePortable.App.Ui.Services;
 using Serilog;
 using UiApp = ClaudePortable.App.Ui.App;
 
@@ -15,6 +17,7 @@ public static class Program
     public static int Main(string[] args)
     {
         ConfigureLogging();
+        InitializeLanguage(args);
 
         if (args.Length == 0 || args.Contains("--gui"))
         {
@@ -28,9 +31,38 @@ public static class Program
         return MainCliAsync(args).GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Resolve the UI language before any command tree or window is built:
+    /// an explicit --lang argument wins, then the language saved from the
+    /// GUI (settings.json), then the Windows display language (hu -> hu,
+    /// anything else -> en). --lang is pre-scanned here because the
+    /// System.CommandLine descriptions themselves need the language.
+    /// </summary>
+    private static void InitializeLanguage(string[] args)
+    {
+        string? cliLang = null;
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (string.Equals(args[i], "--lang", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                cliLang = args[i + 1];
+            }
+            else if (args[i].StartsWith("--lang=", StringComparison.OrdinalIgnoreCase))
+            {
+                cliLang = args[i]["--lang=".Length..];
+            }
+        }
+
+        var saved = new SettingsStore().Load().Language;
+        Loc.SetLanguage(Loc.Normalize(cliLang ?? saved));
+    }
+
     private static async Task<int> MainCliAsync(string[] args)
     {
-        var root = new RootCommand("ClaudePortable - backup and restore Claude Desktop / Claude Code state.");
+        var root = new RootCommand(Loc.T("Cli_RootDesc"));
+        var langOption = new Option<string?>("--lang", Loc.T("Cli_Lang"));
+        langOption.FromAmong("en", "hu");
+        root.AddGlobalOption(langOption);
         root.AddCommand(BackupCommand.Build());
         root.AddCommand(RestoreCommand.Build());
         root.AddCommand(ListCommand.Build());
@@ -46,16 +78,19 @@ public static class Program
         {
             // Redirect managed Console streams to the real console so our
             // output mixes cleanly with whatever the parent shell prints.
+            // UTF-8 so localized output (Hungarian accents) survives legacy
+            // OEM code pages.
+            var utf8 = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
             var stdOut = Console.OpenStandardOutput();
             if (stdOut != Stream.Null)
             {
-                var writer = new StreamWriter(stdOut) { AutoFlush = true };
+                var writer = new StreamWriter(stdOut, utf8) { AutoFlush = true };
                 Console.SetOut(writer);
             }
             var stdErr = Console.OpenStandardError();
             if (stdErr != Stream.Null)
             {
-                var writer = new StreamWriter(stdErr) { AutoFlush = true };
+                var writer = new StreamWriter(stdErr, utf8) { AutoFlush = true };
                 Console.SetError(writer);
             }
         }

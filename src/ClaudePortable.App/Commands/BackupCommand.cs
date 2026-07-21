@@ -1,5 +1,7 @@
 using System.CommandLine;
+using System.Globalization;
 using System.Runtime.Versioning;
+using ClaudePortable.App.Localization;
 using ClaudePortable.Core.Archive;
 using ClaudePortable.Core.Backup;
 using ClaudePortable.Core.Discovery;
@@ -16,27 +18,27 @@ public static class BackupCommand
     {
         var toOption = new Option<DirectoryInfo>(
             aliases: new[] { "--to", "-t" },
-            description: "Destination folder for the backup ZIP.")
+            description: Loc.T("Cli_Backup_To"))
         {
             IsRequired = true,
         };
 
         var tierOption = new Option<RetentionTier>(
             aliases: new[] { "--tier" },
-            description: "Retention tier to mark this backup with.",
+            description: Loc.T("Cli_Backup_Tier"),
             getDefaultValue: () => RetentionTier.Daily);
 
         var dryRunOption = new Option<bool>(
             aliases: new[] { "--dry-run" },
-            description: "Plan the backup without writing any data.",
+            description: Loc.T("Cli_Backup_DryRun"),
             getDefaultValue: () => false);
 
         var noRotateOption = new Option<bool>(
             aliases: new[] { "--no-rotate" },
-            description: "Skip the post-backup retention rotation.",
+            description: Loc.T("Cli_Backup_NoRotate"),
             getDefaultValue: () => false);
 
-        var cmd = new Command("backup", "Create a backup ZIP from local Claude data.")
+        var cmd = new Command("backup", Loc.T("Cli_Backup_Desc"))
         {
             toOption,
             tierOption,
@@ -53,14 +55,14 @@ public static class BackupCommand
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                Console.Error.WriteLine($"error: destination folder '{toValue.FullName}' is not writable: {ex.Message}");
+                Console.Error.WriteLine(Loc.F("Cli_Backup_ErrNotWritable", toValue.FullName, ex.Message));
                 Environment.ExitCode = 2;
                 return;
             }
 
             if (target.HasPendingCloudUploadFlags())
             {
-                Console.Error.WriteLine($"warning: destination '{target.FolderPath}' has cloud pending-upload flags. Sync client may be behind.");
+                Console.Error.WriteLine(Loc.F("Cli_Backup_WarnCloudFlags", target.FolderPath));
             }
 
             var engine = new BackupEngine(new WindowsPathDiscovery(), new ZipArchiveWriter());
@@ -68,30 +70,30 @@ public static class BackupCommand
 
             if (dryRun)
             {
-                Console.WriteLine($"[dry-run] would create {outcome.ZipPath}");
-                Console.WriteLine($"[dry-run] files (before manifest+checklist): {outcome.Manifest.FileCount}");
+                Console.WriteLine(Loc.F("Cli_Backup_DryRunWouldCreate", outcome.ZipPath));
+                Console.WriteLine(Loc.F("Cli_Backup_DryRunFiles", outcome.Manifest.FileCount));
                 foreach (var (key, cnt) in outcome.FilesPerSource)
                 {
-                    Console.WriteLine($"[dry-run]   {key}: {cnt} files");
+                    Console.WriteLine(Loc.F("Cli_Backup_DryRunSource", key, cnt));
                 }
                 foreach (var skipped in outcome.SkippedPaths)
                 {
-                    Console.Error.WriteLine($"[dry-run] warning: skipped (not present): {skipped.Key} <- {skipped.Path}");
+                    Console.Error.WriteLine(Loc.F("Cli_Backup_DryRunSkipped", skipped.Key, skipped.Path));
                 }
                 return;
             }
 
-            Console.WriteLine($"created: {outcome.ZipPath}");
-            Console.WriteLine($"files:   {outcome.Manifest.FileCount}");
-            Console.WriteLine($"bytes:   {outcome.Manifest.SizeBytes:N0}");
-            Console.WriteLine($"sha256:  {outcome.Manifest.Sha256}");
+            Console.WriteLine(Loc.F("Cli_Backup_Created", outcome.ZipPath));
+            Console.WriteLine(Loc.F("Cli_Backup_Files", outcome.Manifest.FileCount));
+            Console.WriteLine(Loc.F("Cli_Backup_Bytes", outcome.Manifest.SizeBytes.ToString("N0", CultureInfo.CurrentCulture)));
+            Console.WriteLine(Loc.F("Cli_Backup_Sha256", outcome.Manifest.Sha256));
             foreach (var (key, cnt) in outcome.FilesPerSource)
             {
-                Console.WriteLine($"  {key}: {cnt} files");
+                Console.WriteLine(Loc.F("Cli_Backup_PerSource", key, cnt));
             }
             foreach (var skipped in outcome.SkippedPaths)
             {
-                Console.Error.WriteLine($"warning: skipped path (not present): {skipped.Key} <- {skipped.Path}");
+                Console.Error.WriteLine(Loc.F("Cli_Backup_SkippedWarn", skipped.Key, skipped.Path));
             }
 
             if (noRotate)
@@ -103,19 +105,21 @@ public static class BackupCommand
             {
                 var manager = new RetentionManager();
                 var report = manager.Rotate(target);
-                Console.WriteLine($"rotation: promoted={report.Promoted.Count} pruned={report.Pruned.Count} -> daily={report.DailyAfter} weekly={report.WeeklyAfter} monthly={report.MonthlyAfter}");
+                Console.WriteLine(Loc.F(
+                    "Cli_Rotation_Summary",
+                    report.Promoted.Count, report.Pruned.Count, report.DailyAfter, report.WeeklyAfter, report.MonthlyAfter));
                 foreach (var item in report.Promoted)
                 {
-                    Console.WriteLine($"  promoted: {item}");
+                    Console.WriteLine(Loc.F("Cli_Rotation_Promoted", item));
                 }
                 foreach (var item in report.Pruned)
                 {
-                    Console.WriteLine($"  pruned:   {item}");
+                    Console.WriteLine(Loc.F("Cli_Rotation_Pruned", item));
                 }
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException)
             {
-                Console.Error.WriteLine($"warning: rotation failed: {ex.Message}");
+                Console.Error.WriteLine(Loc.F("Cli_Rotation_Failed", ex.Message));
             }
         }, toOption, tierOption, dryRunOption, noRotateOption);
 

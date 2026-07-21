@@ -2,7 +2,9 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:ClaudePortable.App.Ui.Converters"
+        xmlns:loc="clr-namespace:ClaudePortable.App.Localization"
         Title="ClaudePortable"
+        Icon="pack://application:,,,/Assets/app.ico"
         Width="1120" Height="720"
         MinWidth="820" MinHeight="520"
         WindowStartupLocation="CenterScreen"
@@ -67,44 +69,51 @@
                     <ListBoxItem>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{DynamicResource NavGlyph}" Text="&#xE9D9;" />
-                            <TextBlock Style="{DynamicResource NavLabel}" Text="Status" />
+                            <TextBlock Style="{DynamicResource NavLabel}" Text="{loc:Loc Nav_Status}" />
                         </StackPanel>
                     </ListBoxItem>
                     <ListBoxItem>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{DynamicResource NavGlyph}" Text="&#xE8B7;" />
-                            <TextBlock Style="{DynamicResource NavLabel}" Text="Targets" />
+                            <TextBlock Style="{DynamicResource NavLabel}" Text="{loc:Loc Nav_Targets}" />
                         </StackPanel>
                     </ListBoxItem>
                     <ListBoxItem>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{DynamicResource NavGlyph}" Text="&#xE721;" />
-                            <TextBlock Style="{DynamicResource NavLabel}" Text="Discovery" />
+                            <TextBlock Style="{DynamicResource NavLabel}" Text="{loc:Loc Nav_Discovery}" />
                         </StackPanel>
                     </ListBoxItem>
                     <ListBoxItem>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{DynamicResource NavGlyph}" Text="&#xE7A7;" />
-                            <TextBlock Style="{DynamicResource NavLabel}" Text="Restore" />
+                            <TextBlock Style="{DynamicResource NavLabel}" Text="{loc:Loc Nav_Restore}" />
                         </StackPanel>
                     </ListBoxItem>
                     <ListBoxItem>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{DynamicResource NavGlyph}" Text="&#xE9F9;" />
-                            <TextBlock Style="{DynamicResource NavLabel}" Text="Logs" />
+                            <TextBlock Style="{DynamicResource NavLabel}" Text="{loc:Loc Nav_Logs}" />
                         </StackPanel>
                     </ListBoxItem>
                     <ListBoxItem>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{DynamicResource NavGlyph}" Text="&#xE787;" />
-                            <TextBlock Style="{DynamicResource NavLabel}" Text="Schedule" />
+                            <TextBlock Style="{DynamicResource NavLabel}" Text="{loc:Loc Nav_Schedule}" />
                         </StackPanel>
                     </ListBoxItem>
                 </ListBox>
 
-                <!-- Footer: always-visible primary action -->
+                <!-- Footer: language switch + always-visible primary action -->
                 <StackPanel Grid.Row="2" Margin="16,8,16,20">
-                    <Button Content="Backup now"
+                    <ComboBox x:Name="LanguageBox"
+                              Style="{DynamicResource DarkCombo}"
+                              Margin="0,0,0,10"
+                              SelectionChanged="OnLanguageSelectionChanged">
+                        <ComboBoxItem Tag="en" Content="English" />
+                        <ComboBoxItem Tag="hu" Content="Magyar" />
+                    </ComboBox>
+                    <Button Content="{loc:Loc Sidebar_BackupNow}"
                             Style="{DynamicResource PrimaryButton}"
                             Command="{Binding BackupNowCommand}"
                             HorizontalAlignment="Stretch" />
@@ -129,37 +138,37 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Style="{DynamicResource H1}" Text="Status" />
-                    <TextBlock Style="{DynamicResource Caption}" Text="A snapshot of your Claude backups across all configured folders." Margin="0,0,0,20" Grid.Row="1" />
+                    <TextBlock Style="{DynamicResource H1}" Text="{loc:Loc Nav_Status}" />
+                    <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Status_Caption}" Margin="0,0,0,20" Grid.Row="1" />
 
                     <!-- Summary cards -->
                     <UniformGrid Grid.Row="2" Columns="3" Margin="0,0,0,20">
                         <Border Style="{DynamicResource Card}" Margin="0,0,8,0">
                             <StackPanel>
-                                <TextBlock Style="{DynamicResource Caption}" Text="BACKUPS" />
+                                <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Status_CardBackups}" />
                                 <TextBlock Text="{Binding Backups.Count}" FontSize="32" FontWeight="SemiBold" Margin="0,4,0,0" />
-                                <TextBlock Style="{DynamicResource Muted}" Text="across all targets" />
+                                <TextBlock Style="{DynamicResource Muted}" Text="{loc:Loc Status_CardBackupsSub}" />
                             </StackPanel>
                         </Border>
                         <Border Style="{DynamicResource Card}" Margin="4,0,4,0">
                             <StackPanel>
-                                <TextBlock Style="{DynamicResource Caption}" Text="TARGETS" />
+                                <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Status_CardTargets}" />
                                 <TextBlock Text="{Binding Targets.Count}" FontSize="32" FontWeight="SemiBold" Margin="0,4,0,0" />
-                                <TextBlock Style="{DynamicResource Muted}" Text="folders configured" />
+                                <TextBlock Style="{DynamicResource Muted}" Text="{loc:Loc Status_CardTargetsSub}" />
                             </StackPanel>
                         </Border>
                         <Border Style="{DynamicResource Card}" Margin="8,0,0,0">
                             <StackPanel>
-                                <TextBlock Style="{DynamicResource Caption}" Text="DISCOVERED" />
+                                <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Status_CardDiscovered}" />
                                 <TextBlock Text="{Binding ClaudePaths.Count}" FontSize="32" FontWeight="SemiBold" Margin="0,4,0,0" />
-                                <TextBlock Style="{DynamicResource Muted}" Text="Claude paths found" />
+                                <TextBlock Style="{DynamicResource Muted}" Text="{loc:Loc Status_CardDiscoveredSub}" />
                             </StackPanel>
                         </Border>
                     </UniformGrid>
 
                     <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,12">
-                        <TextBlock Style="{DynamicResource H2}" Text="Recent backups" VerticalAlignment="Center" />
-                        <Button Content="Refresh"
+                        <TextBlock Style="{DynamicResource H2}" Text="{loc:Loc Status_RecentBackups}" VerticalAlignment="Center" />
+                        <Button Content="{loc:Loc Common_Refresh}"
                                 Command="{Binding RefreshCommand}"
                                 HorizontalAlignment="Right" Margin="16,0,0,8" />
                     </StackPanel>
@@ -168,11 +177,11 @@
                               ItemsSource="{Binding Backups}"
                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="TIER" Binding="{Binding Manifest.RetentionTier}" Width="Auto" />
-                            <DataGridTextColumn Header="CREATED" Binding="{Binding Manifest.CreatedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="Auto" />
-                            <DataGridTextColumn Header="HOSTNAME" Binding="{Binding Manifest.Hostname}" Width="Auto" />
-                            <DataGridTextColumn Header="SIZE" Binding="{Binding SizeBytes, StringFormat=N0}" Width="Auto" />
-                            <DataGridTextColumn Header="FILE" Binding="{Binding FileName}" Width="*" />
+                            <DataGridTextColumn Header="{loc:Loc Grid_Tier}" Binding="{Binding Manifest.RetentionTier}" Width="Auto" />
+                            <DataGridTextColumn Header="{loc:Loc Grid_Created}" Binding="{Binding Manifest.CreatedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="Auto" />
+                            <DataGridTextColumn Header="{loc:Loc Grid_Hostname}" Binding="{Binding Manifest.Hostname}" Width="Auto" />
+                            <DataGridTextColumn Header="{loc:Loc Grid_Size}" Binding="{Binding SizeBytes, StringFormat=N0}" Width="Auto" />
+                            <DataGridTextColumn Header="{loc:Loc Grid_File}" Binding="{Binding FileName}" Width="*" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -188,22 +197,22 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Style="{DynamicResource H1}" Text="Targets" />
-                    <TextBlock Style="{DynamicResource Caption}" Text="Folders where ClaudePortable writes backup ZIPs. Let OneDrive, Google Drive, Dropbox, or your own sync client handle the upload." Margin="0,0,0,20" Grid.Row="1" TextWrapping="Wrap" />
+                    <TextBlock Style="{DynamicResource H1}" Text="{loc:Loc Nav_Targets}" />
+                    <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Targets_Caption}" Margin="0,0,0,20" Grid.Row="1" TextWrapping="Wrap" />
 
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
-                        <Button Content="Add folder"
+                        <Button Content="{loc:Loc Targets_AddFolder}"
                                 Style="{DynamicResource PrimaryButton}"
                                 Command="{Binding AddTargetCommand}"
                                 Margin="0,0,8,0" />
-                        <Button Content="Set as active"
+                        <Button Content="{loc:Loc Targets_SetActive}"
                                 Command="{Binding SetActiveTargetCommand}"
-                                ToolTip="Make the selected folder the backup destination for 'Backup now'."
+                                ToolTip="{loc:Loc Targets_SetActiveTooltip}"
                                 Margin="0,0,8,0" />
-                        <Button Content="Remove selected"
+                        <Button Content="{loc:Loc Targets_RemoveSelected}"
                                 Command="{Binding RemoveTargetCommand}" />
                         <TextBlock Style="{DynamicResource Muted}" VerticalAlignment="Center" Margin="16,0,0,0">
-                            <Run Text="Active target:" FontWeight="SemiBold" />
+                            <Run Text="{loc:Loc Targets_ActiveLabel}" FontWeight="SemiBold" />
                             <Run Text="{Binding ActiveTargetPath, Mode=OneWay}" />
                         </TextBlock>
                     </StackPanel>
@@ -212,7 +221,7 @@
                         <DataGrid ItemsSource="{Binding Targets}" SelectedItem="{Binding SelectedTarget}"
                                   AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="PATH" Binding="{Binding Path}" Width="*" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Path}" Binding="{Binding Path}" Width="*" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
@@ -231,29 +240,29 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Style="{DynamicResource H1}" Text="Discovery" />
-                    <TextBlock Style="{DynamicResource Caption}" Margin="0,0,0,20" Grid.Row="1" TextWrapping="Wrap">What ClaudePortable found on this machine. The EXISTS column is a read-only status indicator, not a toggle - paths that do not exist are skipped during backup. Cowork is not listed as its own row: session state lives under <Run FontFamily="{DynamicResource MonoFont}">AppData\Roaming\Claude\local-agent-mode-sessions</Run> (already covered by the Claude Desktop AppData row), and the project folders you opened in Cowork are auto-discovered and backed up separately.</TextBlock>
+                    <TextBlock Style="{DynamicResource H1}" Text="{loc:Loc Nav_Discovery}" />
+                    <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Discovery_Caption}" Margin="0,0,0,20" Grid.Row="1" TextWrapping="Wrap" />
 
-                    <TextBlock Style="{DynamicResource H2}" Text="Claude paths" Grid.Row="2" Margin="0,0,0,8" />
+                    <TextBlock Style="{DynamicResource H2}" Text="{loc:Loc Discovery_ClaudePaths}" Grid.Row="2" Margin="0,0,0,8" />
                     <Border Style="{DynamicResource Card}" Padding="0" Grid.Row="3">
                         <DataGrid ItemsSource="{Binding ClaudePaths}"
                                   AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="KEY" Binding="{Binding Key}" Width="Auto" />
-                                <DataGridTextColumn Header="PATH" Binding="{Binding Path}" Width="*" />
-                                <DataGridCheckBoxColumn Header="EXISTS" Binding="{Binding Exists}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Key}" Binding="{Binding Key}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Path}" Binding="{Binding Path}" Width="*" />
+                                <DataGridCheckBoxColumn Header="{loc:Loc Grid_Exists}" Binding="{Binding Exists}" Width="Auto" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
 
-                    <TextBlock Style="{DynamicResource H2}" Text="Sync clients" Grid.Row="4" Margin="0,20,0,8" />
+                    <TextBlock Style="{DynamicResource H2}" Text="{loc:Loc Discovery_SyncClients}" Grid.Row="4" Margin="0,20,0,8" />
                     <Border Style="{DynamicResource Card}" Padding="0" Grid.Row="5">
                         <DataGrid ItemsSource="{Binding SyncClients}"
                                   AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="NAME" Binding="{Binding Name}" Width="Auto" />
-                                <DataGridTextColumn Header="PATH" Binding="{Binding Path}" Width="*" />
-                                <DataGridCheckBoxColumn Header="AVAIL" Binding="{Binding IsAvailable}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Name}" Binding="{Binding Name}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Path}" Binding="{Binding Path}" Width="*" />
+                                <DataGridCheckBoxColumn Header="{loc:Loc Grid_Avail}" Binding="{Binding IsAvailable}" Width="Auto" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
@@ -272,39 +281,32 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Style="{DynamicResource H1}" Text="Restore" />
-                    <TextBlock Style="{DynamicResource Caption}" TextWrapping="Wrap" Margin="0,0,0,20" Grid.Row="1">
-                        Select a snapshot from a configured target or browse to any
-                        <Run FontFamily="{DynamicResource MonoFont}">claude-backup_*.zip</Run> on disk
-                        (handy when you moved to another machine). ClaudePortable moves the current
-                        Claude data aside to
-                        <Run FontFamily="{DynamicResource MonoFont}">&lt;folder&gt;_backup_&lt;timestamp&gt;</Run>
-                        before restoring — nothing is deleted.
-                    </TextBlock>
+                    <TextBlock Style="{DynamicResource H1}" Text="{loc:Loc Nav_Restore}" />
+                    <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Restore_Caption}" TextWrapping="Wrap" Margin="0,0,0,20" Grid.Row="1" />
 
-                    <TextBlock Style="{DynamicResource H2}" Text="Available snapshots" Grid.Row="2" />
+                    <TextBlock Style="{DynamicResource H2}" Text="{loc:Loc Restore_AvailableSnapshots}" Grid.Row="2" />
 
                     <Border Style="{DynamicResource Card}" Padding="0" Grid.Row="3">
                         <DataGrid ItemsSource="{Binding Backups}" SelectedItem="{Binding SelectedBackup}"
                                   AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="STATUS" Binding="{Binding StatusLabel}" Width="Auto" />
-                                <DataGridTextColumn Header="TIER" Binding="{Binding Manifest.RetentionTier}" Width="Auto" />
-                                <DataGridTextColumn Header="CREATED" Binding="{Binding Manifest.CreatedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="Auto" />
-                                <DataGridTextColumn Header="HOSTNAME" Binding="{Binding Manifest.Hostname}" Width="Auto" />
-                                <DataGridTextColumn Header="FILE" Binding="{Binding FileName}" Width="*" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Status}" Binding="{Binding StatusLabel}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Tier}" Binding="{Binding Manifest.RetentionTier}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Created}" Binding="{Binding Manifest.CreatedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Hostname}" Binding="{Binding Manifest.Hostname}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_File}" Binding="{Binding FileName}" Width="*" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
 
                     <StackPanel Orientation="Horizontal" Margin="0,16,0,0" Grid.Row="4">
-                        <Button Content="Restore selected snapshot"
+                        <Button Content="{loc:Loc Restore_RestoreSelected}"
                                 Style="{DynamicResource PrimaryButton}"
                                 Command="{Binding RestoreCommand}"
                                 Margin="0,0,8,0" />
-                        <Button Content="Restore from file..."
+                        <Button Content="{loc:Loc Restore_RestoreFromFile}"
                                 Command="{Binding RestoreFromFileCommand}" />
-                        <Button Content="Open Checklist"
+                        <Button Content="{loc:Loc Restore_OpenChecklist}"
                                 Command="{Binding OpenChecklistCommand}"
                                 Margin="8,0,0,0"
                                 Visibility="{Binding PostRestoreChecklistPath, Converter={StaticResource StringToVisible}}" />
@@ -312,36 +314,20 @@
 
                     <Expander Grid.Row="5" Margin="0,16,0,0"
                               Foreground="#D6D3C9"
-                              Header="Advanced options"
+                              Header="{loc:Loc Restore_AdvancedOptions}"
                               FontSize="13"
                               FontWeight="SemiBold">
                         <Border Style="{DynamicResource Card}" Margin="0,8,0,0">
                             <StackPanel>
-                                <TextBlock Style="{DynamicResource Caption}" TextWrapping="Wrap" Margin="0,0,0,12">
-                                    Override where the restore writes files. Use this when the backup was taken
-                                    under a different Windows user name (e.g.
-                                    <Run FontFamily="{DynamicResource MonoFont}">sascha</Run> on the workstation,
-                                    <Run FontFamily="{DynamicResource MonoFont}">sasch</Run> on the laptop). All
-                                    sub-paths (<Run FontFamily="{DynamicResource MonoFont}">AppData\Roaming</Run>,
-                                    <Run FontFamily="{DynamicResource MonoFont}">AppData\Local</Run>,
-                                    <Run FontFamily="{DynamicResource MonoFont}">.claude</Run>,
-                                    <Run FontFamily="{DynamicResource MonoFont}">.cowork</Run>) are derived from
-                                    this root. Leave blank to use
-                                    <Run FontFamily="{DynamicResource MonoFont}">%USERPROFILE%</Run>.
-                                </TextBlock>
+                                <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Restore_AdvancedCaption}" TextWrapping="Wrap" Margin="0,0,0,12" />
 
-                                <TextBlock Text="Target user profile" Margin="0,0,0,4" FontWeight="SemiBold" Foreground="#D6D3C9" />
+                                <TextBlock Text="{loc:Loc Restore_TargetUserProfile}" Margin="0,0,0,4" FontWeight="SemiBold" Foreground="#D6D3C9" />
                                 <DockPanel Margin="0,0,0,12">
-                                    <Button DockPanel.Dock="Right" Content="Browse..."
+                                    <Button DockPanel.Dock="Right" Content="{loc:Loc Common_Browse}"
                                             Command="{Binding PickTargetProfileCommand}"
                                             Margin="8,0,0,0" />
                                     <TextBox Text="{Binding TargetUserProfileOverride, UpdateSourceTrigger=PropertyChanged}"
-                                             Background="#1A1917"
-                                             Foreground="#FFFFFF"
-                                             CaretBrush="#FFFFFF"
-                                             BorderBrush="#4A4944"
-                                             BorderThickness="1"
-                                             Padding="10,6"
+                                             Style="{DynamicResource DarkTextBox}"
                                              FontFamily="{DynamicResource MonoFont}" />
                                 </DockPanel>
 
@@ -349,8 +335,8 @@
                                           Foreground="#D6D3C9"
                                           Margin="0,0,0,8">
                                     <TextBlock TextWrapping="Wrap">
-                                        Ignore Claude Desktop version mismatch
-                                        <Run Foreground="#B5B2A8" FontSize="12" FontStyle="Italic">(skip the major-version block; chat-history schema may differ)</Run>
+                                        <Run Text="{loc:Loc Restore_IgnoreVersionMismatch}" />
+                                        <Run Text="{loc:Loc Restore_IgnoreVersionMismatchHint}" Foreground="#B5B2A8" FontSize="12" FontStyle="Italic" />
                                     </TextBlock>
                                 </CheckBox>
                             </StackPanel>
@@ -368,8 +354,8 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Style="{DynamicResource H1}" Text="Logs" />
-                    <TextBlock Style="{DynamicResource Caption}" Text="Most recent 500 lines from this session. Logs persist in memory only — restart clears them." Margin="0,0,0,20" Grid.Row="1" />
+                    <TextBlock Style="{DynamicResource H1}" Text="{loc:Loc Nav_Logs}" />
+                    <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Logs_Caption}" Margin="0,0,0,20" Grid.Row="1" />
 
                     <Border Style="{DynamicResource Card}" Grid.Row="2">
                         <ListBox ItemsSource="{Binding LogEntries}" />
@@ -384,29 +370,63 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Style="{DynamicResource H1}" Text="Schedule" />
-                    <TextBlock Style="{DynamicResource Caption}" TextWrapping="Wrap" Margin="0,0,0,20" Grid.Row="1">
-                        Windows scheduled tasks visible from this machine. ClaudePortable-managed entries are highlighted in green;
-                        foreign tasks that touch Claude or Cowork paths (like a hand-written backup PowerShell script) are highlighted
-                        in orange. Use Refresh after creating or removing a task elsewhere.
-                    </TextBlock>
+                    <TextBlock Style="{DynamicResource H1}" Text="{loc:Loc Nav_Schedule}" />
+                    <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Schedule_Caption}" TextWrapping="Wrap" Margin="0,0,0,20" Grid.Row="1" />
 
-                    <DockPanel Grid.Row="2" Margin="0,0,0,12" LastChildFill="True">
-                        <Button DockPanel.Dock="Left" Content="Refresh"
+                    <!-- Auto-backup setup: GUI equivalent of `schedule install` -->
+                    <Border Style="{DynamicResource Card}" Grid.Row="2" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Style="{DynamicResource H2}" Text="{loc:Loc Schedule_AutoBackupTitle}" Margin="0,0,0,4" />
+                            <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Schedule_AutoBackupCaption}" TextWrapping="Wrap" Margin="0,0,0,12" />
+                            <WrapPanel Orientation="Horizontal">
+                                <StackPanel Margin="0,0,16,8">
+                                    <TextBlock Text="{loc:Loc Schedule_AtLabel}" Foreground="#D6D3C9" Margin="0,0,0,4" />
+                                    <TextBox Style="{DynamicResource DarkTextBox}"
+                                             Text="{Binding InstallTime, UpdateSourceTrigger=PropertyChanged}"
+                                             Width="90"
+                                             FontFamily="{DynamicResource MonoFont}" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,16,8">
+                                    <TextBlock Text="{loc:Loc Schedule_TaskNameLabel}" Foreground="#D6D3C9" Margin="0,0,0,4" />
+                                    <TextBox Style="{DynamicResource DarkTextBox}"
+                                             Text="{Binding InstallTaskName, UpdateSourceTrigger=PropertyChanged}"
+                                             Width="220"
+                                             FontFamily="{DynamicResource MonoFont}" />
+                                </StackPanel>
+                                <Button Content="{loc:Loc Schedule_InstallTask}"
+                                        Style="{DynamicResource PrimaryButton}"
+                                        Command="{Binding InstallBackupTaskCommand}"
+                                        VerticalAlignment="Bottom"
+                                        Margin="0,0,8,8" />
+                                <Button Content="{loc:Loc Schedule_RemoveTask}"
+                                        Command="{Binding RemoveBackupTaskCommand}"
+                                        VerticalAlignment="Bottom"
+                                        Margin="0,0,16,8" />
+                                <TextBlock Style="{DynamicResource Muted}" VerticalAlignment="Bottom" Margin="0,0,0,14" TextTrimming="CharacterEllipsis">
+                                    <Run Text="{loc:Loc Targets_ActiveLabel}" FontWeight="SemiBold" />
+                                    <Run Text="{Binding DataContext.ActiveTargetPath, RelativeSource={RelativeSource AncestorType=Window}, Mode=OneWay}" />
+                                </TextBlock>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <DockPanel Grid.Row="3" Margin="0,0,0,12" LastChildFill="True">
+                        <Button DockPanel.Dock="Left" Content="{loc:Loc Common_Refresh}"
                                 Style="{DynamicResource PrimaryButton}"
                                 Command="{Binding RefreshCommand}"
                                 Margin="0,0,12,0" />
                         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="0,0,12,0" VerticalAlignment="Center">
-                            <RadioButton Content="Claude-related" GroupName="ScheduleFilter"
+                            <RadioButton Content="{loc:Loc Schedule_FilterRelevant}" GroupName="ScheduleFilter"
                                          IsChecked="{Binding IsFilterRelevant, Mode=TwoWay}"
                                          Margin="0,0,12,0" Foreground="#D6D3C9" VerticalAlignment="Center" />
-                            <RadioButton Content="Managed only" GroupName="ScheduleFilter"
+                            <RadioButton Content="{loc:Loc Schedule_FilterManaged}" GroupName="ScheduleFilter"
                                          IsChecked="{Binding IsFilterManaged, Mode=TwoWay}"
                                          Margin="0,0,12,0" Foreground="#D6D3C9" VerticalAlignment="Center" />
-                            <RadioButton Content="All tasks" GroupName="ScheduleFilter"
+                            <RadioButton Content="{loc:Loc Schedule_FilterAll}" GroupName="ScheduleFilter"
                                          IsChecked="{Binding IsFilterAll, Mode=TwoWay}"
                                          Foreground="#D6D3C9" VerticalAlignment="Center" />
                         </StackPanel>
@@ -414,12 +434,14 @@
                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                     </DockPanel>
 
-                    <Border Style="{DynamicResource Card}" Padding="0" Grid.Row="3">
+                    <Border Style="{DynamicResource Card}" Padding="0" Grid.Row="4">
                         <DataGrid ItemsSource="{Binding Tasks}"
                                   AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                                  RowHeight="40">
+                                  RowHeight="40"
+                                  FrozenColumnCount="2"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Auto">
                             <DataGrid.Columns>
-                                <DataGridTemplateColumn Header="" Width="32">
+                                <DataGridTemplateColumn Header="" Width="32" CanUserResize="False">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Width="10" Height="10" CornerRadius="5"
@@ -429,25 +451,38 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="NAME" Binding="{Binding FullName}" Width="*" />
-                                <DataGridTextColumn Header="STATE" Binding="{Binding State}" Width="Auto" />
-                                <DataGridTextColumn Header="SCHEDULE" Binding="{Binding TriggerSummary}" Width="Auto" />
-                                <DataGridTextColumn Header="NEXT" Binding="{Binding NextRunDisplay}" Width="Auto" />
-                                <DataGridTextColumn Header="LAST" Binding="{Binding LastRunDisplay}" Width="Auto" />
-                                <DataGridTextColumn Header="ACTION" Binding="{Binding ActionDisplay}" Width="2*" />
-                                <DataGridTemplateColumn Header="" Width="Auto">
+                                <!-- Compact ⋮ menu frozen on the left so remove/modify stay reachable. -->
+                                <DataGridTemplateColumn Header="" Width="48" CanUserResize="False" CanUserReorder="False">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <StackPanel Orientation="Horizontal">
-                                                <Button Content="Run" Command="{Binding RunNowCommand}" Margin="0,4,4,4" Padding="8,2" />
-                                                <Button Content="Disable" Command="{Binding DisableCommand}" Margin="0,4,4,4" Padding="8,2" />
-                                                <Button Content="Enable" Command="{Binding EnableCommand}" Margin="0,4,4,4" Padding="8,2" />
-                                                <Button Content="XML" Command="{Binding ViewXmlCommand}" Margin="0,4,4,4" Padding="8,2" />
-                                                <Button Content="Delete" Command="{Binding DeleteCommand}" Margin="0,4,4,4" Padding="8,2" />
-                                            </StackPanel>
+                                            <Button Content="⋮"
+                                                    ToolTip="{loc:Loc Schedule_RowActions}"
+                                                    Padding="8,2"
+                                                    FontSize="16"
+                                                    FontWeight="Bold"
+                                                    VerticalAlignment="Center"
+                                                    HorizontalAlignment="Center"
+                                                    Click="OnScheduleRowActionsClick">
+                                                <Button.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="{loc:Loc Schedule_Run}" Command="{Binding RunNowCommand}" />
+                                                        <MenuItem Header="{loc:Loc Schedule_Disable}" Command="{Binding DisableCommand}" />
+                                                        <MenuItem Header="{loc:Loc Schedule_Enable}" Command="{Binding EnableCommand}" />
+                                                        <MenuItem Header="{loc:Loc Schedule_Xml}" Command="{Binding ViewXmlCommand}" />
+                                                        <Separator />
+                                                        <MenuItem Header="{loc:Loc Schedule_Delete}" Command="{Binding DeleteCommand}" />
+                                                    </ContextMenu>
+                                                </Button.ContextMenu>
+                                            </Button>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="{loc:Loc Grid_Name}" Binding="{Binding FullName}" Width="*" MinWidth="120" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_State}" Binding="{Binding State}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Schedule}" Binding="{Binding TriggerSummary}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Next}" Binding="{Binding NextRunDisplay}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Last}" Binding="{Binding LastRunDisplay}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Action}" Binding="{Binding ActionDisplay}" Width="*" MinWidth="80" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>

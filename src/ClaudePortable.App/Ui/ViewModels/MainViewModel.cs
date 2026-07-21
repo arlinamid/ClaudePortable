@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Reflection;
+using ClaudePortable.App.Localization;
 using System.Runtime.Versioning;
 using ClaudePortable.App.Ui.Services;
 using ClaudePortable.Core.Abstractions;
@@ -21,7 +22,7 @@ public sealed class MainViewModel : ViewModelBase
     private const string DefaultBackupFolderName = "ClaudePortable";
 
     private readonly TargetStore _store = new();
-    private string _status = "Ready.";
+    private string _status = Loc.T("Vm_Ready");
     private string _targetUserProfileOverride = string.Empty;
     private bool _ignoreVersionMismatch;
     private bool _isBusy;
@@ -95,7 +96,7 @@ public sealed class MainViewModel : ViewModelBase
     /// "Set as active" moves a target to the top, and the list order persists
     /// in targets.json, so this survives restarts.
     /// </summary>
-    public string ActiveTargetPath => Targets.FirstOrDefault()?.Path ?? "(none)";
+    public string ActiveTargetPath => Targets.FirstOrDefault()?.Path ?? Loc.T("Vm_ActiveTargetNone");
 
     public string ProgressMessage
     {
@@ -197,6 +198,8 @@ public sealed class MainViewModel : ViewModelBase
         PickTargetProfileCommand = new RelayCommand(PickTargetProfile);
         OpenChecklistCommand = new RelayCommand(OpenChecklist, () => !string.IsNullOrEmpty(PostRestoreChecklistPath));
 
+        ScheduledTasks.ActiveTargetProvider = () => Targets.FirstOrDefault()?.Path;
+
         Raise(nameof(ActiveTargetPath));
         _ = RefreshAsync();
     }
@@ -205,13 +208,28 @@ public sealed class MainViewModel : ViewModelBase
     {
         var dlg = new Microsoft.Win32.OpenFolderDialog
         {
-            Title = "Pick the target user profile folder (C:\\Users\\<name>)",
+            Title = Loc.T("Dlg_PickProfileTitle"),
             InitialDirectory = @"C:\Users",
         };
         if (dlg.ShowDialog() == true)
         {
             TargetUserProfileOverride = dlg.FolderName;
         }
+    }
+
+    /// <summary>
+    /// Called after the UI language switched: re-evaluate computed strings
+    /// and reload the lists so cached row labels (e.g. StatusLabel) pick up
+    /// the new language. An idle status is reset to the localized "Ready.".
+    /// </summary>
+    public void OnLanguageChanged()
+    {
+        Raise(nameof(ActiveTargetPath));
+        if (!IsBusy)
+        {
+            Status = Loc.T("Vm_Ready");
+        }
+        _ = RefreshAsync();
     }
 
     public async Task RefreshAsync()
@@ -242,13 +260,13 @@ public sealed class MainViewModel : ViewModelBase
     {
         if (Targets.Count == 0)
         {
-            Status = "No target configured.";
+            Status = Loc.T("Vm_NoTarget");
             return;
         }
         var target = Targets.First();
         UiLogSink.Instance.Append($"backup starting -> {target.Path}");
-        Status = "Backing up...";
-        BeginBusy("Starting backup");
+        Status = Loc.T("Vm_BackingUp");
+        BeginBusy(Loc.T("Vm_StartingBackup"));
         var progress = CreateProgress();
         try
         {
@@ -271,16 +289,16 @@ public sealed class MainViewModel : ViewModelBase
                 UiLogSink.Instance.Append($"  skipped (not present on this machine): {skipped.Key} <- {skipped.Path}");
             }
 
-            ProgressMessage = "Rotating retention...";
+            ProgressMessage = Loc.T("Vm_RotatingRetention");
             ProgressIsIndeterminate = true;
             var report = await Task.Run(() => new RetentionManager().Rotate(new FolderTarget(target.Path))).ConfigureAwait(true);
             UiLogSink.Instance.Append($"rotation: promoted={report.Promoted.Count} pruned={report.Pruned.Count}");
-            Status = "Backup complete.";
+            Status = Loc.T("Vm_BackupComplete");
         }
         catch (Exception ex)
         {
             UiLogSink.Instance.Append($"backup failed: {ex.Message}");
-            Status = $"Backup failed: {ex.Message}";
+            Status = Loc.F("Vm_BackupFailed", ex.Message);
         }
         finally
         {
@@ -293,7 +311,7 @@ public sealed class MainViewModel : ViewModelBase
     {
         var dlg = new Microsoft.Win32.OpenFolderDialog
         {
-            Title = "Select a folder to write backups into",
+            Title = Loc.T("Dlg_AddTargetTitle"),
         };
         if (dlg.ShowDialog() == true)
         {
@@ -351,8 +369,8 @@ public sealed class MainViewModel : ViewModelBase
         if (SelectedBackup.IsCloudOnly)
         {
             var proceed = System.Windows.MessageBox.Show(
-                $"'{SelectedBackup.FileName}' is currently cloud-only (placeholder). The restore will trigger a download and may take several minutes depending on backup size.\n\nProceed?",
-                "Cloud-only backup",
+                Loc.F("Dlg_CloudOnlyText", SelectedBackup.FileName),
+                Loc.T("Dlg_CloudOnlyTitle"),
                 System.Windows.MessageBoxButton.YesNo,
                 System.Windows.MessageBoxImage.Information);
             if (proceed != System.Windows.MessageBoxResult.Yes)
@@ -367,8 +385,8 @@ public sealed class MainViewModel : ViewModelBase
     {
         var dlg = new Microsoft.Win32.OpenFileDialog
         {
-            Title = "Pick a ClaudePortable backup ZIP",
-            Filter = "ClaudePortable backups (*.zip)|claude-backup_*.zip|All ZIP files (*.zip)|*.zip",
+            Title = Loc.T("Dlg_PickZipTitle"),
+            Filter = Loc.T("Dlg_ZipFilter"),
             CheckFileExists = true,
             Multiselect = false,
         };
@@ -382,8 +400,8 @@ public sealed class MainViewModel : ViewModelBase
     private async Task RunRestoreAsync(string zipPath, string displayName)
     {
         var confirm = System.Windows.MessageBox.Show(
-            $"Restore from:\n{displayName}\n\nExisting Claude data will be moved to <folder>_backup_<timestamp> where possible, or files will be overlaid if the target is a Store-app reparse point. Nothing is deleted.\n\nProceed?",
-            "Confirm restore",
+            Loc.F("Dlg_ConfirmRestoreText", displayName),
+            Loc.T("Dlg_ConfirmRestoreTitle"),
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning);
         if (confirm != System.Windows.MessageBoxResult.Yes)
@@ -393,13 +411,13 @@ public sealed class MainViewModel : ViewModelBase
 
         if (!await EnsureClaudeDesktopClosedAsync().ConfigureAwait(true))
         {
-            Status = "Restore cancelled - Claude Desktop still running.";
+            Status = Loc.T("Vm_RestoreCancelledRunning");
             return;
         }
 
-        Status = "Restoring...";
+        Status = Loc.T("Vm_Restoring");
         UiLogSink.Instance.Append($"restore starting: {displayName}");
-        BeginBusy("Starting restore");
+        BeginBusy(Loc.T("Vm_StartingRestore"));
         var progress = CreateProgress();
         try
         {
@@ -452,13 +470,13 @@ public sealed class MainViewModel : ViewModelBase
 
             PostRestoreChecklistPath = outcome.PostRestoreChecklistPath;
             Status = totalWarnings == 0
-                ? $"Restore complete. Checklist: {outcome.PostRestoreChecklistPath}"
-                : $"Restore complete with {totalWarnings} warning(s). See Logs tab.";
+                ? Loc.F("Vm_RestoreCompleteChecklist", outcome.PostRestoreChecklistPath)
+                : Loc.F("Vm_RestoreCompleteWarnings", totalWarnings);
         }
         catch (Exception ex)
         {
             UiLogSink.Instance.Append($"restore failed: {ex.Message}");
-            Status = $"Restore failed: {ex.Message}";
+            Status = Loc.F("Vm_RestoreFailed", ex.Message);
         }
         finally
         {
@@ -512,10 +530,8 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         var result = System.Windows.MessageBox.Show(
-            $"Claude Desktop is running (PID {string.Join(", ", running.Select(p => p.Id))}). " +
-            "Its open file handles will cause 'Access denied' errors during restore.\n\n" +
-            "Close Claude Desktop now? (Yes = close for me, No = cancel restore)",
-            "Close Claude Desktop?",
+            Loc.F("Dlg_CloseClaudeText", string.Join(", ", running.Select(p => p.Id))),
+            Loc.T("Dlg_CloseClaudeTitle"),
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning);
         if (result != System.Windows.MessageBoxResult.Yes)
@@ -546,7 +562,7 @@ public sealed class MainViewModel : ViewModelBase
     {
         if (string.IsNullOrEmpty(PostRestoreChecklistPath) || !File.Exists(PostRestoreChecklistPath))
         {
-            Status = "No checklist available yet. Run a restore first.";
+            Status = Loc.T("Vm_NoChecklist");
             return;
         }
 
@@ -557,11 +573,11 @@ public sealed class MainViewModel : ViewModelBase
                 FileName = PostRestoreChecklistPath,
                 UseShellExecute = true,
             });
-            Status = $"Opened checklist: {PostRestoreChecklistPath}";
+            Status = Loc.F("Vm_OpenedChecklist", PostRestoreChecklistPath);
         }
         catch (Exception ex)
         {
-            Status = $"Could not open checklist: {ex.Message}";
+            Status = Loc.F("Vm_ChecklistError", ex.Message);
         }
     }
 
@@ -626,8 +642,8 @@ public sealed record BackupEntry(
     bool IsCloudOnly)
 {
     public string StatusLabel => IsCloudOnly
-        ? "Cloud-only"
+        ? ClaudePortable.App.Localization.Loc.T("Label_CloudOnly")
         : Manifest is null
-            ? "Unreadable"
-            : "Synced";
+            ? ClaudePortable.App.Localization.Loc.T("Label_Unreadable")
+            : ClaudePortable.App.Localization.Loc.T("Label_Synced");
 }

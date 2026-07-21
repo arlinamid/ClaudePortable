@@ -1,7 +1,10 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
+using ClaudePortable.App.Localization;
+using ClaudePortable.App.Ui.Services;
 using ClaudePortable.App.Ui.ViewModels;
 
 namespace ClaudePortable.App.Ui.Views;
@@ -9,11 +12,48 @@ namespace ClaudePortable.App.Ui.Views;
 [SupportedOSPlatform("windows")]
 public partial class MainWindow : Window
 {
+    private bool _languageBoxReady;
+
     public MainWindow()
     {
         InitializeComponent();
         DataContext = new MainViewModel();
         SourceInitialized += OnSourceInitialized;
+
+        LanguageBox.SelectedIndex = Loc.LanguageCode == Loc.Hungarian ? 1 : 0;
+        _languageBoxReady = true;
+    }
+
+    private void OnLanguageSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_languageBoxReady || LanguageBox.SelectedItem is not ComboBoxItem { Tag: string code })
+        {
+            return;
+        }
+        if (code == Loc.LanguageCode)
+        {
+            return;
+        }
+        Loc.SetLanguage(code);
+        new SettingsStore().SaveLanguage(code);
+        (DataContext as MainViewModel)?.OnLanguageChanged();
+    }
+
+    /// <summary>
+    /// Opens the per-row ⋮ ContextMenu on left-click (ContextMenu is right-click by default).
+    /// </summary>
+    private void OnScheduleRowActionsClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button { ContextMenu: { } menu } button)
+        {
+            return;
+        }
+
+        menu.DataContext = button.DataContext;
+        menu.PlacementTarget = button;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        menu.IsOpen = true;
+        e.Handled = true;
     }
 
     public void ShowAndActivate()

@@ -1,5 +1,7 @@
 using System.CommandLine;
+using System.Globalization;
 using System.Runtime.Versioning;
+using ClaudePortable.App.Localization;
 using ClaudePortable.Core.Restore;
 
 namespace ClaudePortable.App.Commands;
@@ -11,26 +13,26 @@ public static class RestoreCommand
     {
         var fromOption = new Option<FileInfo>(
             aliases: new[] { "--from", "-f" },
-            description: "Backup ZIP to restore from.")
+            description: Loc.T("Cli_Restore_From"))
         {
             IsRequired = true,
         };
 
         var yesOption = new Option<bool>(
             aliases: new[] { "--yes", "-y" },
-            description: "Confirm that existing Claude data will be moved aside.",
+            description: Loc.T("Cli_Restore_Yes"),
             getDefaultValue: () => false);
 
         var targetUserOption = new Option<string?>(
             aliases: new[] { "--target-user" },
-            description: "Override the target Windows user profile path (advanced).");
+            description: Loc.T("Cli_Restore_TargetUser"));
 
         var ignoreVersionOption = new Option<bool>(
             aliases: new[] { "--ignore-version-mismatch" },
-            description: "Proceed even when the backup's claudeDesktopVersion is a major version behind the installed Claude Desktop.",
+            description: Loc.T("Cli_Restore_IgnoreVersion"),
             getDefaultValue: () => false);
 
-        var cmd = new Command("restore", "Restore Claude data from a backup ZIP.")
+        var cmd = new Command("restore", Loc.T("Cli_Restore_Desc"))
         {
             fromOption,
             yesOption,
@@ -42,7 +44,7 @@ public static class RestoreCommand
         {
             if (!yes)
             {
-                Console.Error.WriteLine("error: restore requires --yes. Existing Claude data will be moved to <folder>_backup_<timestamp>.");
+                Console.Error.WriteLine(Loc.T("Cli_Restore_NeedYes"));
                 Environment.ExitCode = 1;
                 return;
             }
@@ -51,31 +53,31 @@ public static class RestoreCommand
             try
             {
                 var outcome = await engine.RestoreAsync(new(from.FullName, targetUser, Confirmed: true, IgnoreVersionMismatch: ignoreVersion)).ConfigureAwait(false);
-                Console.WriteLine("restore complete.");
-                Console.WriteLine($"manifest schema:     {outcome.Manifest.SchemaVersion}");
-                Console.WriteLine($"backup created at:   {outcome.Manifest.CreatedAt:yyyy-MM-ddTHH:mm:ssZ}");
-                Console.WriteLine($"original host:       {outcome.Manifest.Hostname}");
-                Console.WriteLine($"version gate:        {outcome.VersionGate.Level} - {outcome.VersionGate.Message}");
-                Console.WriteLine($"safety backups:      {outcome.SafetyBackups.Count}");
+                Console.WriteLine(Loc.T("Cli_Restore_Complete"));
+                Console.WriteLine(Loc.F("Cli_Restore_ManifestSchema", outcome.Manifest.SchemaVersion));
+                Console.WriteLine(Loc.F("Cli_Restore_CreatedAt", outcome.Manifest.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture)));
+                Console.WriteLine(Loc.F("Cli_Restore_OriginalHost", outcome.Manifest.Hostname));
+                Console.WriteLine(Loc.F("Cli_Restore_VersionGate", outcome.VersionGate.Level, outcome.VersionGate.Message));
+                Console.WriteLine(Loc.F("Cli_Restore_SafetyBackups", outcome.SafetyBackups.Count));
                 foreach (var sb in outcome.SafetyBackups)
                 {
                     Console.WriteLine($"  - {sb}");
                 }
-                Console.WriteLine($"checklist saved to:  {outcome.PostRestoreChecklistPath}");
+                Console.WriteLine(Loc.F("Cli_Restore_Checklist", outcome.PostRestoreChecklistPath));
             }
             catch (FileNotFoundException ex)
             {
-                Console.Error.WriteLine($"error: {ex.Message}");
+                Console.Error.WriteLine(Loc.F("Cli_Restore_ErrGeneric", ex.Message));
                 Environment.ExitCode = 2;
             }
             catch (InvalidDataException ex)
             {
-                Console.Error.WriteLine($"error: backup appears invalid: {ex.Message}");
+                Console.Error.WriteLine(Loc.F("Cli_Restore_ErrInvalid", ex.Message));
                 Environment.ExitCode = 3;
             }
             catch (InvalidOperationException ex)
             {
-                Console.Error.WriteLine($"error: {ex.Message}");
+                Console.Error.WriteLine(Loc.F("Cli_Restore_ErrGeneric", ex.Message));
                 Environment.ExitCode = 3;
             }
         }, fromOption, yesOption, targetUserOption, ignoreVersionOption);

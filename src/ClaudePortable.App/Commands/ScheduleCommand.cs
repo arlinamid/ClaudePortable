@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.Globalization;
 using System.Runtime.Versioning;
 using System.Text.Json;
+using ClaudePortable.App.Localization;
 using ClaudePortable.Scheduler.Scheduling;
 
 namespace ClaudePortable.App.Commands;
@@ -11,7 +12,7 @@ public static class ScheduleCommand
 {
     public static Command Build()
     {
-        var cmd = new Command("schedule", "Install, inspect, list, or remove Windows Task Scheduler entries.");
+        var cmd = new Command("schedule", Loc.T("Cli_Schedule_Desc"));
         cmd.AddCommand(BuildInstall());
         cmd.AddCommand(BuildShow());
         cmd.AddCommand(BuildRemove());
@@ -25,11 +26,11 @@ public static class ScheduleCommand
 
     private static Command BuildInstall()
     {
-        var folderOption = new Option<DirectoryInfo>(new[] { "--folder", "-f" }, "Destination folder for scheduled backups.") { IsRequired = true };
-        var timeOption = new Option<string>(new[] { "--at" }, () => "23:00", "Daily local time in HH:mm (24h).");
-        var nameOption = new Option<string>(new[] { "--name" }, () => "ClaudePortable-Daily", "Task Scheduler task name.");
-        var noInstallOption = new Option<bool>(new[] { "--no-install" }, () => false, "Write XML only; do not invoke schtasks.exe.");
-        var install = new Command("install", "Create or replace the scheduled task.")
+        var folderOption = new Option<DirectoryInfo>(new[] { "--folder", "-f" }, Loc.T("Cli_Schedule_Folder")) { IsRequired = true };
+        var timeOption = new Option<string>(new[] { "--at" }, () => "23:00", Loc.T("Cli_Schedule_At"));
+        var nameOption = new Option<string>(new[] { "--name" }, () => "ClaudePortable-Daily", Loc.T("Cli_Schedule_Name"));
+        var noInstallOption = new Option<bool>(new[] { "--no-install" }, () => false, Loc.T("Cli_Schedule_NoInstall"));
+        var install = new Command("install", Loc.T("Cli_Schedule_Install_Desc"))
         {
             folderOption, timeOption, nameOption, noInstallOption,
         };
@@ -38,7 +39,7 @@ public static class ScheduleCommand
         {
             if (!TimeOnly.TryParseExact(atRaw, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
             {
-                Console.Error.WriteLine($"error: could not parse --at '{atRaw}'. Expected HH:mm.");
+                Console.Error.WriteLine(Loc.F("Cli_Schedule_ErrParseAt", atRaw));
                 Environment.ExitCode = 1;
                 return;
             }
@@ -50,7 +51,7 @@ public static class ScheduleCommand
                 ExecutablePath: exe,
                 Arguments: new[] { "backup", "--to", folder.FullName },
                 DailyStart: at,
-                Description: $"ClaudePortable daily backup to {folder.FullName}");
+                Description: Loc.F("Cli_Schedule_TaskDescription", folder.FullName));
 
             var xml = TaskSchedulerEmitter.ToXml(spec, DateTimeOffset.UtcNow);
             var xmlPath = Path.Combine(
@@ -59,11 +60,11 @@ public static class ScheduleCommand
                 $"{taskName}.xml");
             Directory.CreateDirectory(Path.GetDirectoryName(xmlPath)!);
             await File.WriteAllTextAsync(xmlPath, xml).ConfigureAwait(false);
-            Console.WriteLine($"wrote: {xmlPath}");
+            Console.WriteLine(Loc.F("Cli_Schedule_Wrote", xmlPath));
 
             if (noInstall)
             {
-                Console.WriteLine("--no-install set; skipping schtasks.exe.");
+                Console.WriteLine(Loc.T("Cli_Schedule_NoInstallSet"));
                 return;
             }
 
@@ -71,19 +72,19 @@ public static class ScheduleCommand
             var exit = await installer.InstallAsync(taskName, xmlPath).ConfigureAwait(false);
             if (exit != 0)
             {
-                Console.Error.WriteLine($"error: schtasks.exe /Create exited with code {exit}.");
+                Console.Error.WriteLine(Loc.F("Cli_Schedule_ErrCreate", exit));
                 Environment.ExitCode = 3;
                 return;
             }
-            Console.WriteLine($"installed scheduled task '{taskName}' running daily at {at:HH:mm} local.");
+            Console.WriteLine(Loc.F("Cli_Schedule_Installed", taskName, at.ToString("HH:mm", CultureInfo.InvariantCulture)));
         }, folderOption, timeOption, nameOption, noInstallOption);
         return install;
     }
 
     private static Command BuildShow()
     {
-        var nameOption = new Option<string>(new[] { "--name" }, () => "ClaudePortable-Daily", "Task Scheduler task name.");
-        var show = new Command("show", "Query the scheduled task via schtasks.exe /Query.")
+        var nameOption = new Option<string>(new[] { "--name" }, () => "ClaudePortable-Daily", Loc.T("Cli_Schedule_Name"));
+        var show = new Command("show", Loc.T("Cli_Schedule_Show_Desc"))
         {
             nameOption,
         };
@@ -102,8 +103,8 @@ public static class ScheduleCommand
 
     private static Command BuildRemove()
     {
-        var nameOption = new Option<string>(new[] { "--name" }, () => "ClaudePortable-Daily", "Task Scheduler task name.");
-        var remove = new Command("remove", "Delete the scheduled task via schtasks.exe /Delete /F.")
+        var nameOption = new Option<string>(new[] { "--name" }, () => "ClaudePortable-Daily", Loc.T("Cli_Schedule_Name"));
+        var remove = new Command("remove", Loc.T("Cli_Schedule_Remove_Desc"))
         {
             nameOption,
         };
@@ -113,22 +114,22 @@ public static class ScheduleCommand
             var exit = await installer.DeleteAsync(taskName).ConfigureAwait(false);
             if (exit != 0)
             {
-                Console.Error.WriteLine($"error: schtasks.exe /Delete exited with code {exit}.");
+                Console.Error.WriteLine(Loc.F("Cli_Schedule_ErrDelete", exit));
                 Environment.ExitCode = 3;
                 return;
             }
-            Console.WriteLine($"deleted scheduled task '{taskName}'.");
+            Console.WriteLine(Loc.F("Cli_Schedule_Deleted", taskName));
         }, nameOption);
         return remove;
     }
 
     private static Command BuildList()
     {
-        var allOption = new Option<bool>(new[] { "--all" }, () => false, "Include foreign tasks unrelated to Claude (default: hide them).");
-        var managedOption = new Option<bool>(new[] { "--managed" }, () => false, "Only list ClaudePortable-managed tasks.");
-        var relevantOption = new Option<bool>(new[] { "--relevant" }, () => false, "Only list ClaudePortable + Claude-related tasks (default).");
-        var jsonOption = new Option<bool>(new[] { "--json" }, () => false, "Emit JSON instead of an aligned table.");
-        var list = new Command("list", "List Windows scheduled tasks and flag Claude relevance.")
+        var allOption = new Option<bool>(new[] { "--all" }, () => false, Loc.T("Cli_Schedule_List_All"));
+        var managedOption = new Option<bool>(new[] { "--managed" }, () => false, Loc.T("Cli_Schedule_List_Managed"));
+        var relevantOption = new Option<bool>(new[] { "--relevant" }, () => false, Loc.T("Cli_Schedule_List_Relevant"));
+        var jsonOption = new Option<bool>(new[] { "--json" }, () => false, Loc.T("Cli_Schedule_List_Json"));
+        var list = new Command("list", Loc.T("Cli_Schedule_List_Desc"))
         {
             allOption, managedOption, relevantOption, jsonOption,
         };
@@ -188,11 +189,18 @@ public static class ScheduleCommand
 
             if (ordered.Count == 0)
             {
-                Console.WriteLine("(no tasks matched the filter)");
+                Console.WriteLine(Loc.T("Cli_Schedule_List_Empty"));
                 return;
             }
 
-            var headers = new[] { "NAME", "MANAGED-BY", "STATE", "NEXT RUN", "ACTION" };
+            var headers = new[]
+            {
+                Loc.T("Grid_Name"),
+                Loc.T("Cli_Hdr_ManagedBy"),
+                Loc.T("Grid_State"),
+                Loc.T("Cli_Hdr_NextRun"),
+                Loc.T("Grid_Action"),
+            };
             var rows = ordered.Select(t => new[]
             {
                 t.FullName,
@@ -218,8 +226,8 @@ public static class ScheduleCommand
 
     private static Command BuildDisable()
     {
-        var nameArg = new Argument<string>("name", "Full task name (e.g. \\ClaudePortable-Daily).");
-        var disable = new Command("disable", "Disable a scheduled task via schtasks.exe /Change /Disable.")
+        var nameArg = new Argument<string>("name", Loc.T("Cli_Schedule_NameArg"));
+        var disable = new Command("disable", Loc.T("Cli_Schedule_Disable_Desc"))
         {
             nameArg,
         };
@@ -229,19 +237,19 @@ public static class ScheduleCommand
             var exit = await installer.DisableAsync(taskName).ConfigureAwait(false);
             if (exit != 0)
             {
-                Console.Error.WriteLine($"error: schtasks.exe /Change /Disable exited with code {exit}.");
+                Console.Error.WriteLine(Loc.F("Cli_Schedule_ErrChangeDisable", exit));
                 Environment.ExitCode = 3;
                 return;
             }
-            Console.WriteLine($"disabled '{taskName}'.");
+            Console.WriteLine(Loc.F("Cli_Schedule_Disabled", taskName));
         }, nameArg);
         return disable;
     }
 
     private static Command BuildEnable()
     {
-        var nameArg = new Argument<string>("name", "Full task name (e.g. \\ClaudePortable-Daily).");
-        var enable = new Command("enable", "Enable a scheduled task via schtasks.exe /Change /Enable.")
+        var nameArg = new Argument<string>("name", Loc.T("Cli_Schedule_NameArg"));
+        var enable = new Command("enable", Loc.T("Cli_Schedule_Enable_Desc"))
         {
             nameArg,
         };
@@ -251,19 +259,19 @@ public static class ScheduleCommand
             var exit = await installer.EnableAsync(taskName).ConfigureAwait(false);
             if (exit != 0)
             {
-                Console.Error.WriteLine($"error: schtasks.exe /Change /Enable exited with code {exit}.");
+                Console.Error.WriteLine(Loc.F("Cli_Schedule_ErrChangeEnable", exit));
                 Environment.ExitCode = 3;
                 return;
             }
-            Console.WriteLine($"enabled '{taskName}'.");
+            Console.WriteLine(Loc.F("Cli_Schedule_Enabled", taskName));
         }, nameArg);
         return enable;
     }
 
     private static Command BuildRun()
     {
-        var nameArg = new Argument<string>("name", "Full task name (e.g. \\ClaudePortable-Daily).");
-        var run = new Command("run", "Trigger a scheduled task immediately via schtasks.exe /Run.")
+        var nameArg = new Argument<string>("name", Loc.T("Cli_Schedule_NameArg"));
+        var run = new Command("run", Loc.T("Cli_Schedule_Run_Desc"))
         {
             nameArg,
         };
@@ -273,11 +281,11 @@ public static class ScheduleCommand
             var exit = await installer.RunNowAsync(taskName).ConfigureAwait(false);
             if (exit != 0)
             {
-                Console.Error.WriteLine($"error: schtasks.exe /Run exited with code {exit}.");
+                Console.Error.WriteLine(Loc.F("Cli_Schedule_ErrRun", exit));
                 Environment.ExitCode = 3;
                 return;
             }
-            Console.WriteLine($"triggered '{taskName}'.");
+            Console.WriteLine(Loc.F("Cli_Schedule_Triggered", taskName));
         }, nameArg);
         return run;
     }
@@ -287,10 +295,10 @@ public static class ScheduleCommand
 
     private static Command BuildEmit()
     {
-        var folderOption = new Option<DirectoryInfo>(new[] { "--folder", "-f" }, "Destination folder for scheduled backups.") { IsRequired = true };
-        var timeOption = new Option<string>(new[] { "--at" }, () => "23:00", "Daily local time in HH:mm (24h).");
-        var nameOption = new Option<string>(new[] { "--name" }, () => "ClaudePortable-Daily", "Task Scheduler task name.");
-        var emit = new Command("emit", "Emit the Task Scheduler XML to stdout without installing.")
+        var folderOption = new Option<DirectoryInfo>(new[] { "--folder", "-f" }, Loc.T("Cli_Schedule_Folder")) { IsRequired = true };
+        var timeOption = new Option<string>(new[] { "--at" }, () => "23:00", Loc.T("Cli_Schedule_At"));
+        var nameOption = new Option<string>(new[] { "--name" }, () => "ClaudePortable-Daily", Loc.T("Cli_Schedule_Name"));
+        var emit = new Command("emit", Loc.T("Cli_Schedule_Emit_Desc"))
         {
             folderOption, timeOption, nameOption,
         };
@@ -298,7 +306,7 @@ public static class ScheduleCommand
         {
             if (!TimeOnly.TryParseExact(atRaw, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
             {
-                Console.Error.WriteLine($"error: could not parse --at '{atRaw}'. Expected HH:mm.");
+                Console.Error.WriteLine(Loc.F("Cli_Schedule_ErrParseAt", atRaw));
                 Environment.ExitCode = 1;
                 return;
             }
@@ -308,7 +316,7 @@ public static class ScheduleCommand
                 ExecutablePath: exe,
                 Arguments: new[] { "backup", "--to", folder.FullName },
                 DailyStart: at,
-                Description: $"ClaudePortable daily backup to {folder.FullName}");
+                Description: Loc.F("Cli_Schedule_TaskDescription", folder.FullName));
             Console.WriteLine(TaskSchedulerEmitter.ToXml(spec, DateTimeOffset.UtcNow));
         }, folderOption, timeOption, nameOption);
         return emit;

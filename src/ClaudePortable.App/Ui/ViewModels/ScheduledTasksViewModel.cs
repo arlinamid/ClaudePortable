@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Runtime.Versioning;
+using ClaudePortable.App.Localization;
 using ClaudePortable.App.Ui.Services;
 using ClaudePortable.Scheduler.Scheduling;
 
@@ -19,7 +21,7 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
     private readonly List<ScheduledTaskInfo> _allTasks = new();
     private ScheduledTasksFilter _filter = ScheduledTasksFilter.Relevant;
     private bool _isLoading;
-    private string _statusLine = "Click Refresh to load scheduled tasks.";
+    private string _statusLine = Loc.T("Sched_ClickRefresh");
 
     public ScheduledTasksViewModel()
         : this(new TaskSchedulerInstaller())
@@ -33,6 +35,8 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
         SetFilterAllCommand = new RelayCommand(() => Filter = ScheduledTasksFilter.All);
         SetFilterManagedCommand = new RelayCommand(() => Filter = ScheduledTasksFilter.Managed);
         SetFilterRelevantCommand = new RelayCommand(() => Filter = ScheduledTasksFilter.Relevant);
+        InstallBackupTaskCommand = new AsyncRelayCommand(InstallBackupTaskAsync);
+        RemoveBackupTaskCommand = new AsyncRelayCommand(RemoveBackupTaskAsync);
     }
 
     public ObservableCollection<ScheduledTaskInfoVm> Tasks { get; } = new();
@@ -41,6 +45,122 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
     public RelayCommand SetFilterAllCommand { get; }
     public RelayCommand SetFilterManagedCommand { get; }
     public RelayCommand SetFilterRelevantCommand { get; }
+    public AsyncRelayCommand InstallBackupTaskCommand { get; }
+    public AsyncRelayCommand RemoveBackupTaskCommand { get; }
+
+    /// <summary>Supplies the backup destination for the auto-backup task;
+    /// wired by MainViewModel to the active (top) target folder.</summary>
+    public Func<string?>? ActiveTargetProvider { get; set; }
+
+    private string _installTime = "23:00";
+
+    public string InstallTime
+    {
+        get => _installTime;
+        set => SetField(ref _installTime, value);
+    }
+
+    private string _installTaskName = "ClaudePortable-Daily";
+
+    public string InstallTaskName
+    {
+        get => _installTaskName;
+        set => SetField(ref _installTaskName, value);
+    }
+
+    /// <summary>
+    /// GUI equivalent of `claudeportable schedule install`: emits the Task
+    /// Scheduler XML for a daily backup into the active target and registers
+    /// it via schtasks.exe. Re-installing under the same name replaces it.
+    /// </summary>
+    public async Task InstallBackupTaskAsync()
+    {
+        if (!TimeOnly.TryParseExact(InstallTime.Trim(), "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
+        {
+            StatusLine = Loc.F("Schedule_InvalidTime", InstallTime);
+            return;
+        }
+
+        var targetFolder = ActiveTargetProvider?.Invoke();
+        if (string.IsNullOrWhiteSpace(targetFolder))
+        {
+            StatusLine = Loc.T("Schedule_NoActiveTarget");
+            return;
+        }
+
+        var taskName = string.IsNullOrWhiteSpace(InstallTaskName) ? "ClaudePortable-Daily" : InstallTaskName.Trim();
+
+        try
+        {
+            var exe = Environment.ProcessPath
+                ?? throw new InvalidOperationException("Could not determine current executable path.");
+            var spec = new ScheduleSpec(
+                TaskName: taskName,
+                ExecutablePath: exe,
+                Arguments: new[] { "backup", "--to", targetFolder },
+                DailyStart: at,
+                Description: Loc.F("Cli_Schedule_TaskDescription", targetFolder));
+
+            var xml = TaskSchedulerEmitter.ToXml(spec, DateTimeOffset.UtcNow);
+            var xmlPath = Path.Combine(
+                Environment.ExpandEnvironmentVariables("%LOCALAPPDATA%"),
+                "ClaudePortable",
+                $"{taskName}.xml");
+            Directory.CreateDirectory(Path.GetDirectoryName(xmlPath)!);
+            await File.WriteAllTextAsync(xmlPath, xml).ConfigureAwait(true);
+
+            var exit = await _installer.InstallAsync(taskName, xmlPath).ConfigureAwait(true);
+            if (exit != 0)
+            {
+                StatusLine = Loc.F("Schedule_InstallFailed", $"schtasks exit {exit}");
+                UiLogSink.Instance.Append($"schedule install failed: '{taskName}' exit={exit}");
+                return;
+            }
+
+            StatusLine = Loc.F("Schedule_InstallOk", taskName, at.ToString("HH:mm", CultureInfo.InvariantCulture));
+            UiLogSink.Instance.Append($"schedule install: '{taskName}' daily at {at:HH:mm} -> {targetFolder}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            StatusLine = Loc.F("Schedule_InstallFailed", ex.Message);
+            UiLogSink.Instance.Append($"schedule install failed: {ex.Message}");
+            return;
+        }
+
+        await RefreshAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// GUI equivalent of `claudeportable schedule remove`: deletes the
+    /// auto-backup task named in the card after a confirmation prompt.
+    /// </summary>
+    public async Task RemoveBackupTaskAsync()
+    {
+        var taskName = string.IsNullOrWhiteSpace(InstallTaskName) ? "ClaudePortable-Daily" : InstallTaskName.Trim();
+
+        var ok = System.Windows.MessageBox.Show(
+            Loc.F("Sched_DeleteConfirmText", taskName),
+            Loc.T("Sched_DeleteConfirmTitle"),
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning) == System.Windows.MessageBoxResult.Yes;
+        if (!ok)
+        {
+            return;
+        }
+
+        var exit = await _installer.DeleteAsync(taskName).ConfigureAwait(true);
+        if (exit != 0)
+        {
+            StatusLine = Loc.F("Schedule_RemoveFailed", $"schtasks exit {exit}");
+            UiLogSink.Instance.Append($"schedule remove failed: '{taskName}' exit={exit}");
+        }
+        else
+        {
+            StatusLine = Loc.F("Schedule_RemoveOk", taskName);
+            UiLogSink.Instance.Append($"schedule remove: '{taskName}'");
+        }
+        await RefreshAsync().ConfigureAwait(true);
+    }
 
     public ScheduledTasksFilter Filter
     {
@@ -108,7 +228,7 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
     public async Task RefreshAsync()
     {
         IsLoading = true;
-        StatusLine = "Loading scheduled tasks...";
+        StatusLine = Loc.T("Sched_Loading");
         try
         {
             var infos = await Task.Run(() => _installer.EnumerateAsync(CancellationToken.None)).ConfigureAwait(true);
@@ -117,11 +237,11 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
             ApplyFilter();
             var managed = _allTasks.Count(t => t.ManagedBy == ManagedBy.ClaudePortable);
             var relevant = _allTasks.Count(t => t.ManagedBy == ManagedBy.ForeignRelevant);
-            StatusLine = $"{_allTasks.Count} task(s) total · {managed} managed by ClaudePortable · {relevant} Claude-related";
+            StatusLine = Loc.F("Sched_StatusLine", _allTasks.Count, managed, relevant);
         }
         catch (Exception ex)
         {
-            StatusLine = $"Failed to enumerate tasks: {ex.Message}";
+            StatusLine = Loc.F("Sched_EnumFailed", ex.Message);
             UiLogSink.Instance.Append($"schedule enumerate failed: {ex.Message}");
         }
         finally
@@ -163,8 +283,8 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
     private async Task DisableAsync(ScheduledTaskInfoVm row)
     {
         var ok = System.Windows.MessageBox.Show(
-            $"Disable scheduled task '{row.FullName}'?\n\nThe task will no longer trigger, but can be re-enabled later. Nothing is deleted.",
-            "Disable task",
+            Loc.F("Sched_DisableConfirmText", row.FullName),
+            Loc.T("Sched_DisableConfirmTitle"),
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Question) == System.Windows.MessageBoxResult.Yes;
         if (!ok)
@@ -190,8 +310,8 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
     private async Task DeleteAsync(ScheduledTaskInfoVm row)
     {
         var ok = System.Windows.MessageBox.Show(
-            $"Delete scheduled task '{row.FullName}'?\n\nThis is permanent. To re-create it you would have to re-install via ClaudePortable or recreate the XML manually.",
-            "Delete task",
+            Loc.F("Sched_DeleteConfirmText", row.FullName),
+            Loc.T("Sched_DeleteConfirmTitle"),
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning) == System.Windows.MessageBoxResult.Yes;
         if (!ok)
@@ -210,7 +330,7 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
         var (exit, xml) = await _installer.GetTaskXmlAsync(row.FullName).ConfigureAwait(true);
         if (exit != 0 || string.IsNullOrWhiteSpace(xml))
         {
-            System.Windows.MessageBox.Show($"Could not read XML for '{row.FullName}' (exit {exit}).", "View XML", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            System.Windows.MessageBox.Show(Loc.F("Sched_XmlError", row.FullName, exit), Loc.T("Sched_XmlTitle"), System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             return;
         }
         try
@@ -222,8 +342,8 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
             // Clipboard occasionally throws on contested access; the XML is shown in the dialog regardless.
         }
         System.Windows.MessageBox.Show(
-            xml.Length > 4000 ? xml[..4000] + "\n...(truncated, full XML copied to clipboard)" : xml,
-            $"XML: {row.FullName}",
+            xml.Length > 4000 ? xml[..4000] + Loc.T("Sched_XmlTruncated") : xml,
+            Loc.F("Sched_XmlDialogTitle", row.FullName),
             System.Windows.MessageBoxButton.OK,
             System.Windows.MessageBoxImage.Information);
     }

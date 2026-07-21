@@ -6,6 +6,12 @@
     <InstallerVersion Condition="'$(InstallerVersion)' == ''">0.1.0</InstallerVersion>
     <InstallerPlatform>x64</InstallerPlatform>
     <PublishStageDir Condition="'$(PublishStageDir)' == ''">$(MSBuildProjectDirectory)\staging</PublishStageDir>
+    <!--
+        WiX v7 Open Source Maintenance Fee EULA acceptance (WIX7015).
+        OSMF EULA v1.1: no fee is owed until the projects using WiX earn
+        at least US$10,000/year; see https://wixtoolset.org/osmf/
+    -->
+    <AcceptEula>wix7</AcceptEula>
     <DefineConstants>
       AppVersion=$(InstallerVersion);
       AppStageDir=$(PublishStageDir);
@@ -14,6 +20,7 @@
 
   <ItemGroup>
     <PackageReference Include="WixToolset.UI.wixext" Version="7.0.0" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="7.0.0" />
   </ItemGroup>
 
 </Project>

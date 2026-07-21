@@ -1,4 +1,5 @@
 using System.Globalization;
+using ClaudePortable.App.Localization;
 using ClaudePortable.Scheduler.Scheduling;
 
 namespace ClaudePortable.App.Ui.ViewModels;
@@ -42,9 +43,9 @@ public sealed class ScheduledTaskInfoVm : ViewModelBase
     public ManagedBy ManagedBy => Info.ManagedBy;
     public string ManagedByLabel => Info.ManagedBy switch
     {
-        ManagedBy.ClaudePortable => "ClaudePortable",
-        ManagedBy.ForeignRelevant => "Claude-related",
-        _ => "Other",
+        ManagedBy.ClaudePortable => Loc.T("Sched_ManagedByClaudePortable"),
+        ManagedBy.ForeignRelevant => Loc.T("Sched_ManagedByRelevant"),
+        _ => Loc.T("Sched_ManagedByOther"),
     };
 
     public string NextRunDisplay => Info.NextRunTime is { } t
@@ -53,7 +54,7 @@ public sealed class ScheduledTaskInfoVm : ViewModelBase
 
     public string LastRunDisplay => Info.LastRunTime is { } t
         ? Info.LastResult is { } r
-            ? $"{t.LocalDateTime:yyyy-MM-dd HH:mm} (exit {r})"
+            ? Loc.F("Sched_LastRunExit", t.LocalDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture), r)
             : t.LocalDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
         : "-";
 

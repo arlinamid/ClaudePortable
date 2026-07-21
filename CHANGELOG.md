@@ -6,6 +6,57 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Single-instance GUI.** A second launch of the window/tray app activates the
+  already-running instance instead of starting another process. CLI commands
+  (`backup`, `schedule`, …) are unaffected so scheduled tasks can still run
+  while the GUI is open.
+- **Full Hungarian + English localization (i18n) for the GUI and the CLI.**
+  All user-facing strings moved into `Strings.resx` (English, neutral) /
+  `Strings.hu.resx` (Hungarian) with a runtime-switchable `Loc` service and a
+  `{loc:Loc Key}` XAML markup extension, so the whole window - navigation,
+  page captions, grid headers, buttons, dialogs, tray menu, status texts -
+  re-renders live when the language changes. Language resolution order:
+  explicit CLI `--lang en|hu` > choice saved from the GUI
+  (`%LOCALAPPDATA%\ClaudePortable\settings.json`) > Windows display language
+  (Hungarian Windows -> `hu`, everything else -> `en`).
+  - GUI: new language selector (English / Magyar) in the sidebar footer;
+    the choice persists across restarts.
+  - CLI: new global `--lang en|hu` option; every command/option description
+    and human-readable output line is localized. CLI output is written as
+    UTF-8 so accented characters survive legacy console code pages.
+  - Intentionally left in English: `--json` payloads (machine-readable),
+    diagnostic log lines (Logs tab and `claudeportable-*.log`), and
+    System.CommandLine's built-in help/version boilerplate.
+  - New `LocalizationParityTests` guard the catalogs: every English key must
+    exist in Hungarian (and vice versa) with matching `{n}` placeholders.
+- **Automatic-backup setup in the GUI.** The Schedule page gained an
+  "Automatic backup" card - daily time (HH:mm) + task name + one
+  "Install / update task" button - that registers the same Task Scheduler
+  entry as `claudeportable schedule install`, targeting the active target
+  folder. Re-installing under the same name replaces the task.
+- **App icon.** New branded icon (accent rounded square with a suitcase +
+  up-arrow glyph) embedded in the exe and used by the window title bar,
+  taskbar, and tray icon (extracted from the exe at runtime, so the
+  single-file build needs no loose asset).
+
+### Fixed
+
+- **Schedule row actions were unreachable / unreadable.** Five inline
+  Run/Disable/Enable/XML/Delete buttons sat in trailing DataGrid columns and
+  scrolled off typical widths. Replaced with a frozen ⋮ menu (Run / Disable /
+  Enable / XML / Delete). Dark `ContextMenu` / `MenuItem` styles so the popup
+  is readable on the warm-dark palette (system light chrome previously left
+  white text on a white menu).
+- **Language dropdown was unreadable.** The default WPF ComboBox template
+  renders a light-chrome popup with system highlight colors, which produced
+  white-on-white items on the warm-dark palette. Added fully retemplated
+  `DarkCombo` / `DarkComboItem` styles (dark closed control, dark popup,
+  hover + selection states from the app palette) plus a shared `DarkTextBox`
+  style now also used by the Restore override field and the new
+  auto-backup inputs.
+
 ## [0.3.2] - 2026-06-03
 
 ### Fixed

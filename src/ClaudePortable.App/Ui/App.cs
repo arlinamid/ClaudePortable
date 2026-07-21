@@ -10,29 +10,80 @@ public static class App
 {
     public static int RunGui()
     {
-        var app = new System.Windows.Application
+        if (!SingleInstance.TryAcquire(out var mutex))
         {
-            ShutdownMode = ShutdownMode.OnExplicitShutdown,
-        };
+            return 0;
+        }
 
-        LoadThemeResources(app);
-
-        var tray = new TrayIcon();
-        var mainWindow = new MainWindow();
-        tray.OpenRequested += (_, _) => mainWindow.ShowAndActivate();
-        tray.QuitRequested += (_, _) =>
+        using (mutex)
+        using (var activateEvent = SingleInstance.CreateActivateEvent())
         {
-            tray.Dispose();
-            app.Shutdown();
-        };
-        mainWindow.Closing += (_, args) =>
-        {
-            args.Cancel = true;
-            mainWindow.Hide();
-        };
+            var app = new System.Windows.Application
+            {
+                ShutdownMode = ShutdownMode.OnExplicitShutdown,
+            };
 
-        mainWindow.Show();
-        return app.Run();
+            LoadThemeResources(app);
+
+            var tray = new TrayIcon();
+            var mainWindow = new MainWindow();
+            tray.OpenRequested += (_, _) => mainWindow.ShowAndActivate();
+            tray.QuitRequested += (_, _) =>
+            {
+                tray.Dispose();
+                app.Shutdown();
+            };
+            mainWindow.Closing += (_, args) =>
+            {
+                args.Cancel = true;
+                mainWindow.Hide();
+            };
+
+            using var cts = new CancellationTokenSource();
+            var activateLoop = Task.Run(() =>
+            {
+                while (!cts.Token.IsCancellationRequested)
+                {
+                    if (!activateEvent.WaitOne(500))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        app.Dispatcher.BeginInvoke(() => mainWindow.ShowAndActivate());
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        break;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // Dispatcher already shut down.
+                        break;
+                    }
+                }
+            }, cts.Token);
+
+            try
+            {
+                mainWindow.Show();
+                return app.Run();
+            }
+            finally
+            {
+                cts.Cancel();
+                activateEvent.Set(); // unblock WaitOne so the loop can exit
+                try
+                {
+                    activateLoop.Wait(TimeSpan.FromSeconds(2));
+                }
+                catch (AggregateException)
+                {
+                    // ignore shutdown race
+                }
+            }
+        }
     }
 
     private static void LoadThemeResources(System.Windows.Application app)

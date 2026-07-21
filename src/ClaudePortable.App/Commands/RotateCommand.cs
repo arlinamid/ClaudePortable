@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.Runtime.Versioning;
+using ClaudePortable.App.Localization;
 using ClaudePortable.Scheduler.Retention;
 using ClaudePortable.Targets;
 
@@ -12,15 +13,15 @@ public static class RotateCommand
     {
         var inOption = new Option<DirectoryInfo>(
             aliases: new[] { "--in", "-i" },
-            description: "Folder to rotate.")
+            description: Loc.T("Cli_Rotate_In"))
         {
             IsRequired = true,
         };
-        var dailyOption = new Option<int>(new[] { "--daily" }, () => 7, "Daily backups to keep.");
-        var weeklyOption = new Option<int>(new[] { "--weekly" }, () => 3, "Weekly backups to keep.");
-        var monthlyOption = new Option<int>(new[] { "--monthly" }, () => 2, "Monthly backups to keep.");
+        var dailyOption = new Option<int>(new[] { "--daily" }, () => 7, Loc.T("Cli_Rotate_Daily"));
+        var weeklyOption = new Option<int>(new[] { "--weekly" }, () => 3, Loc.T("Cli_Rotate_Weekly"));
+        var monthlyOption = new Option<int>(new[] { "--monthly" }, () => 2, Loc.T("Cli_Rotate_Monthly"));
 
-        var cmd = new Command("rotate", "Apply retention rotation (promote daily->weekly, weekly->monthly; prune older).")
+        var cmd = new Command("rotate", Loc.T("Cli_Rotate_Desc"))
         {
             inOption, dailyOption, weeklyOption, monthlyOption,
         };
@@ -31,17 +32,17 @@ public static class RotateCommand
             var policy = new RetentionPolicy(daily, weekly, monthly, DayOfWeek.Sunday);
             var manager = new RetentionManager(policy);
             var report = manager.Rotate(target);
-            Console.WriteLine($"promoted: {report.Promoted.Count}");
+            Console.WriteLine(Loc.F("Cli_Rotate_Promoted", report.Promoted.Count));
             foreach (var item in report.Promoted)
             {
                 Console.WriteLine($"  {item}");
             }
-            Console.WriteLine($"pruned: {report.Pruned.Count}");
+            Console.WriteLine(Loc.F("Cli_Rotate_Pruned", report.Pruned.Count));
             foreach (var item in report.Pruned)
             {
                 Console.WriteLine($"  {item}");
             }
-            Console.WriteLine($"daily={report.DailyAfter} weekly={report.WeeklyAfter} monthly={report.MonthlyAfter}");
+            Console.WriteLine(Loc.F("Cli_Rotate_Counts", report.DailyAfter, report.WeeklyAfter, report.MonthlyAfter));
         }, inOption, dailyOption, weeklyOption, monthlyOption);
 
         return cmd;

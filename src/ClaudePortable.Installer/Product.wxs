@@ -12,6 +12,13 @@
 
     <MediaTemplate EmbedCab="yes" />
 
+    <!-- Branding: app icon for Add/Remove Programs + shortcuts -->
+    <Icon Id="AppIcon.ico" SourceFile="$(sys.SOURCEFILEDIR)..\ClaudePortable.App\Assets\app.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/arlinamid/ClaudePortable" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/arlinamid/ClaudePortable" />
+    <Property Id="ARPCOMMENTS" Value="Backup and restore Claude Desktop / Claude Code state as a single ZIP." />
+
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="ClaudePortable" />
     </StandardDirectory>
@@ -23,6 +30,7 @@
                   Description="Backup and restore Claude Desktop / Claude Code state"
                   Target="[INSTALLFOLDER]claudeportable.exe"
                   Arguments="--gui"
+                  Icon="AppIcon.ico"
                   WorkingDirectory="INSTALLFOLDER" />
         <RegistryValue Root="HKCU"
                        Key="Software\ClaudePortable"
@@ -38,8 +46,31 @@
       <Files Directory="INSTALLFOLDER" Include="$(AppStageDir)\**" />
     </Feature>
 
-    <ui:WixUI Id="WixUI_InstallDir" />
+    <!--
+        Full setup UI: Welcome -> License (EULA, must accept) -> Install
+        folder -> Ready -> Progress -> Finish with an optional "launch now"
+        checkbox. WixUI_InstallDir supplies the dialog sequence; the license
+        text is the repo's MIT LICENSE rendered as RTF.
+    -->
+    <WixVariable Id="WixUILicenseRtf" Value="$(sys.SOURCEFILEDIR)License.rtf" />
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch ClaudePortable" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+
+    <SetProperty Id="WixShellExecTarget" Value="[INSTALLFOLDER]claudeportable.exe" After="CostFinalize" />
+    <CustomAction Id="LaunchApplication"
+                  DllEntry="WixShellExec"
+                  Impersonate="yes"
+                  BinaryRef="Wix4UtilCA_X86" />
+
+    <UI>
+      <ui:WixUI Id="WixUI_InstallDir" />
+      <Publish Dialog="ExitDialog"
+               Control="Finish"
+               Event="DoAction"
+               Value="LaunchApplication"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
+    </UI>
 
   </Package>
 

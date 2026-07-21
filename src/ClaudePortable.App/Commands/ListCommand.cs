@@ -1,6 +1,8 @@
 using System.CommandLine;
+using System.Globalization;
 using System.Runtime.Versioning;
 using System.Text.Json;
+using ClaudePortable.App.Localization;
 using ClaudePortable.Targets;
 
 namespace ClaudePortable.App.Commands;
@@ -12,17 +14,17 @@ public static class ListCommand
     {
         var inOption = new Option<DirectoryInfo>(
             aliases: new[] { "--in", "-i" },
-            description: "Folder to list backups from.")
+            description: Loc.T("Cli_List_In"))
         {
             IsRequired = true,
         };
 
         var jsonOption = new Option<bool>(
             aliases: new[] { "--json" },
-            description: "Emit machine-readable JSON.",
+            description: Loc.T("Cli_List_Json"),
             getDefaultValue: () => false);
 
-        var cmd = new Command("list", "List backups in a folder.")
+        var cmd = new Command("list", Loc.T("Cli_List_Desc"))
         {
             inOption,
             jsonOption,
@@ -51,15 +53,15 @@ public static class ListCommand
 
             if (backups.Count == 0)
             {
-                Console.WriteLine("no backups found.");
+                Console.WriteLine(Loc.T("Cli_List_NoBackups"));
                 return;
             }
 
-            Console.WriteLine($"{"tier",-8} {"created",-20} {"size",10}  file");
+            Console.WriteLine($"{Loc.T("Cli_List_HdrTier"),-8} {Loc.T("Cli_List_HdrCreated"),-20} {Loc.T("Cli_List_HdrSize"),10}  {Loc.T("Cli_List_HdrFile")}");
             foreach (var b in backups)
             {
                 var tier = b.Manifest?.RetentionTier.ToString().ToLowerInvariant() ?? "?";
-                var created = b.Manifest?.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) ?? "?";
+                var created = b.Manifest?.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) ?? "?";
                 Console.WriteLine($"{tier,-8} {created,-20} {b.SizeBytes,10:N0}  {b.FileName}");
             }
         }, inOption, jsonOption);

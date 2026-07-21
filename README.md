@@ -64,6 +64,17 @@ A ProgressBar on the status bar appears for the duration of any backup or restor
 
 A tray icon keeps the app alive in the background; closing the window hides it, `Quit` in the tray menu actually exits.
 
+## Languages (i18n)
+
+The GUI and CLI are fully localized in **English** and **Hungarian (magyar)**.
+
+- **GUI**: language selector (English / Magyar) in the sidebar footer. Switching re-renders the whole window live - no restart - and the choice persists in `%LOCALAPPDATA%\ClaudePortable\settings.json`.
+- **CLI**: pass `--lang en` or `--lang hu` to any command to override the language for that run.
+- **Default**: without an explicit choice, the saved GUI language wins; failing that, the Windows display language decides (Hungarian Windows → Hungarian, everything else → English).
+- Machine-readable output (`--json`), the diagnostic log lines (Logs tab, `claudeportable-*.log`), and System.CommandLine's built-in help/version boilerplate intentionally stay in English.
+
+Strings live in `src/ClaudePortable.App/Localization/Strings.resx` (English, neutral) and `Strings.hu.resx` (Hungarian); `LocalizationParityTests` fails the build's test run if the two catalogs ever drift (missing keys or mismatched `{n}` placeholders). To add a language, copy `Strings.hu.resx` to `Strings.<code>.resx`, translate, and extend `Loc.Normalize` plus the GUI selector.
+
 ## CLI
 
 Same binary - if you pass arguments it attaches to the parent console.
