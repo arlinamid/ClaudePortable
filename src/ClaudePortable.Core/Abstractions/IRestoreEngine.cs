@@ -3,11 +3,16 @@ using ClaudePortable.Core.Restore;
 
 namespace ClaudePortable.Core.Abstractions;
 
+/// <param name="Groups">
+/// Source groups to restore (see SourceGroups); null restores everything in
+/// the backup.
+/// </param>
 public sealed record RestoreRequest(
     string SourceZipPath,
     string? TargetUserProfile = null,
     bool Confirmed = false,
-    bool IgnoreVersionMismatch = false);
+    bool IgnoreVersionMismatch = false,
+    IReadOnlySet<string>? Groups = null);
 
 public sealed record RestoreTargetReport(
     string ArchivePrefix,

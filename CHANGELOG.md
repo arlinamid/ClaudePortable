@@ -33,8 +33,33 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - The Claude Desktop Store package folder is matched as `Claude_*` instead of
   one hard-coded publisher id, like `OpenAI.Codex_*`.
 
+- **Choose what to back up and restore.** Backups and restores can be
+  limited to source groups: `claude-desktop`, `cowork`, `claude-code` and
+  `codex` (aliases `claude`, `all`). The shared `.agents` skill store goes
+  with either agent.
+  - CLI: `--include` / `--skip` on `backup`, `restore`, `schedule install` and
+    `schedule emit`. The scheduled task stores the selection in its command
+    line.
+  - GUI: **What to back up** checkboxes on the Status page (saved in
+    `settings.json`, used by *Backup now* and the automatic backup task),
+    **What to restore** checkboxes on the Restore page, a **Contents** column
+    in both backup lists, and friendly source names on the Discovery page.
+  - Partial backups are tagged in the file name
+    (`..._<host>_codex_daily.zip`) and in the manifest (`groups`).
+  - Restore asks to close Codex (as it already did for Claude Desktop), but
+    only for apps whose data is actually being restored. The Claude Desktop
+    version check no longer blocks restores that skip Claude Desktop.
+
 ### Fixed
 
+- **Retention could delete other machines' backups.** Rotation counted
+  every backup in a folder together, so two PCs syncing into the same
+  OneDrive folder pruned each other's backups (and partial backups would
+  have pruned full ones). Retention now rotates each machine and selection
+  separately.
+- **CLI exit codes were always 0.** Failures reported through
+  `Environment.ExitCode` were overwritten by `Main`'s return value, so
+  scripts and Task Scheduler saw failed backups and restores as successful.
 - **Claude Code's OAuth tokens were included in backups.**
   `.claude\.credentials.json` is now excluded, as the README always promised,
   and carried over from the safety backup on a same-machine restore.

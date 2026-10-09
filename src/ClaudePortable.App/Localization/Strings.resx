@@ -289,4 +289,34 @@ This is permanent. To re-create it you would have to re-install via AgentPortabl
   <data name="Cli_Rotate_Promoted" xml:space="preserve"><value>promoted: {0}</value></data>
   <data name="Cli_Rotate_Pruned" xml:space="preserve"><value>pruned: {0}</value></data>
   <data name="Cli_Rotate_Counts" xml:space="preserve"><value>daily={0} weekly={1} monthly={2}</value></data>
+  <data name="Cli_Groups_Include" xml:space="preserve"><value>Only these groups: claude-desktop, cowork, claude-code, codex (comma-separated; aliases: claude, all). Default: all.</value></data>
+  <data name="Cli_Groups_Skip" xml:space="preserve"><value>Leave these groups out (same names as --include).</value></data>
+  <data name="Cli_Groups_Invalid" xml:space="preserve"><value>error: {0}</value></data>
+  <data name="Group_ClaudeDesktop" xml:space="preserve"><value>Claude Desktop</value></data>
+  <data name="Group_ClaudeDesktop_Hint" xml:space="preserve"><value>Claude Desktop settings, chat state, extensions and Cowork session metadata (%APPDATA%\Claude).</value></data>
+  <data name="Group_Cowork" xml:space="preserve"><value>Cowork projects</value></data>
+  <data name="Group_Cowork_Hint" xml:space="preserve"><value>The project folders you opened in Cowork sessions (can be large).</value></data>
+  <data name="Group_ClaudeCode" xml:space="preserve"><value>Claude Code</value></data>
+  <data name="Group_ClaudeCode_Hint" xml:space="preserve"><value>%USERPROFILE%\.claude: settings, CLAUDE.md, skills, plugins, sessions. Includes the shared .agents skill folder.</value></data>
+  <data name="Group_Codex" xml:space="preserve"><value>Codex</value></data>
+  <data name="Group_Codex_Hint" xml:space="preserve"><value>%USERPROFILE%\.codex (or %CODEX_HOME%): config.toml, AGENTS.md, sessions, skills, plus the Codex app. Includes the shared .agents skill folder.</value></data>
+  <data name="Source_ClaudeDesktopAppData" xml:space="preserve"><value>Claude Desktop (app data)</value></data>
+  <data name="Source_ClaudeDesktopLocalAppData" xml:space="preserve"><value>Claude Desktop (local data)</value></data>
+  <data name="Source_ClaudeCode" xml:space="preserve"><value>Claude Code</value></data>
+  <data name="Source_Codex" xml:space="preserve"><value>Codex (CLI + app state)</value></data>
+  <data name="Source_CodexApp" xml:space="preserve"><value>Codex app</value></data>
+  <data name="Source_Agents" xml:space="preserve"><value>Shared skills (.agents)</value></data>
+  <data name="Grid_Source" xml:space="preserve"><value>SOURCE</value></data>
+  <data name="Grid_Contents" xml:space="preserve"><value>CONTENTS</value></data>
+  <data name="Status_WhatToBackUp" xml:space="preserve"><value>What to back up</value></data>
+  <data name="Status_WhatToBackUpHint" xml:space="preserve"><value>Used by Backup now and by the automatic backup task (re-install the task on the Schedule page after changing this). Backups with different selections are rotated separately.</value></data>
+  <data name="Restore_WhatToRestore" xml:space="preserve"><value>What to restore</value></data>
+  <data name="Restore_WhatToRestoreHint" xml:space="preserve"><value>Only the ticked parts are restored; everything else on this machine is left untouched. Parts missing from the backup are skipped.</value></data>
+  <data name="Vm_NothingSelected" xml:space="preserve"><value>Nothing selected - tick at least one item.</value></data>
+  <data name="Vm_RestoreNothingInBackup" xml:space="preserve"><value>The selected backup contains none of the ticked items.</value></data>
+  <data name="Vm_RestoreCancelledRunningCodex" xml:space="preserve"><value>Restore cancelled - Codex still running.</value></data>
+  <data name="Dlg_CloseCodexText" xml:space="preserve"><value>Codex is running (PID {0}). The Codex app and codex CLI sessions keep %USERPROFILE%\.codex open, which breaks the restore.
+
+Close all Codex processes now? Unsaved work in open codex terminal sessions is lost. (Yes = close for me, No = cancel restore)</value></data>
+  <data name="Dlg_CloseCodexTitle" xml:space="preserve"><value>Close Codex?</value></data>
 </root>

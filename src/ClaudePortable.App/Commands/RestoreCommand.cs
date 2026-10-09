@@ -32,16 +32,26 @@ public static class RestoreCommand
             description: Loc.T("Cli_Restore_IgnoreVersion"),
             getDefaultValue: () => false);
 
+        var includeOption = GroupOptions.CreateInclude();
+        var skipOption = GroupOptions.CreateSkip();
+
         var cmd = new Command("restore", Loc.T("Cli_Restore_Desc"))
         {
             fromOption,
             yesOption,
             targetUserOption,
             ignoreVersionOption,
+            includeOption,
+            skipOption,
         };
 
-        cmd.SetHandler(async (from, yes, targetUser, ignoreVersion) =>
+        cmd.SetHandler(async (from, yes, targetUser, ignoreVersion, include, skip) =>
         {
+            if (!GroupOptions.TryResolve(include, skip, out var groups))
+            {
+                return;
+            }
+
             if (!yes)
             {
                 Console.Error.WriteLine(Loc.T("Cli_Restore_NeedYes"));
@@ -52,7 +62,7 @@ public static class RestoreCommand
             var engine = new RestoreEngine(new PathRewriter());
             try
             {
-                var outcome = await engine.RestoreAsync(new(from.FullName, targetUser, Confirmed: true, IgnoreVersionMismatch: ignoreVersion)).ConfigureAwait(false);
+                var outcome = await engine.RestoreAsync(new(from.FullName, targetUser, Confirmed: true, IgnoreVersionMismatch: ignoreVersion, Groups: groups)).ConfigureAwait(false);
                 Console.WriteLine(Loc.T("Cli_Restore_Complete"));
                 Console.WriteLine(Loc.F("Cli_Restore_ManifestSchema", outcome.Manifest.SchemaVersion));
                 Console.WriteLine(Loc.F("Cli_Restore_CreatedAt", outcome.Manifest.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture)));
@@ -80,7 +90,7 @@ public static class RestoreCommand
                 Console.Error.WriteLine(Loc.F("Cli_Restore_ErrGeneric", ex.Message));
                 Environment.ExitCode = 3;
             }
-        }, fromOption, yesOption, targetUserOption, ignoreVersionOption);
+        }, fromOption, yesOption, targetUserOption, ignoreVersionOption, includeOption, skipOption);
 
         return cmd;
     }

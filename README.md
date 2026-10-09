@@ -60,10 +60,10 @@ Optional integrity check:
 
 Launch with no arguments (or `--gui`). Warm-dark UI in the Claude Desktop style, WCAG 2.1 AA contrast throughout, visible keyboard focus rings. Six sections:
 
-- **Status** - summary cards for backups / targets / discovered paths, plus a grid of existing snapshots per target.
+- **Status** - summary cards for backups / targets / discovered paths, the **What to back up** checkboxes (Claude Desktop, Cowork projects, Claude Code, Codex; saved in `settings.json` and used by *Backup now* and by the automatic backup task), plus a grid of existing snapshots per target with a **Contents** column.
 - **Targets** - folder list. Auto-discovers `<SyncClient>\ClaudePortable` on every recognised sync client (OneDrive Personal / Business, Dropbox, Google Drive Desktop), so a restore on a second machine picks up the first machine's backups without configuration. Manual add/remove available.
 - **Discovery** - read-only view of detected Claude + Codex paths and sync clients.
-- **Restore** - backup grid with per-row `STATUS` (`Synced` / `Cloud-only` / `Unreadable`), `Restore from file...` escape hatch for a ZIP that is not in any configured target, and an **Advanced options** panel for overriding the target user profile (e.g. restoring a `sascha` backup onto a laptop with `sasch` as the user) and for the version-gate override.
+- **Restore** - backup grid with per-row `STATUS` (`Synced` / `Cloud-only` / `Unreadable`) and `CONTENTS`, **What to restore** checkboxes (e.g. restore only Codex from a full backup; untouched parts of the machine stay as they are), `Restore from file...` escape hatch for a ZIP that is not in any configured target, and an **Advanced options** panel for overriding the target user profile (e.g. restoring a `sascha` backup onto a laptop with `sasch` as the user) and for the version-gate override.
 - **Logs** - last 500 log lines from the current session, rendered mono.
 - **Schedule** - enumerates every Windows scheduled task on this machine via `schtasks.exe /Query /FO CSV /V`. AgentPortable-managed entries are flagged green (name starts with `ClaudePortable-` / `AgentPortable-`, or the author contains either name). Tasks that aren't managed but touch a Claude/Cowork/`.claude`/`.codex` path - including hand-written backup PowerShell scripts that compete with AgentPortable - are flagged orange. Per-row buttons run/disable/enable/delete the task and copy its raw XML to the clipboard. Use this to spot legacy `\Claude-Desktop-Backup`-style tasks that write loose-file backups into a long-path OneDrive folder and break sync.
 
@@ -88,14 +88,37 @@ Same binary - if you pass arguments it attaches to the parent console.
 
 ```
 claudeportable discover                                # detected Claude / Codex paths + sync clients
-claudeportable backup   --to <folder> [--tier daily]   # create a backup ZIP (auto-rotates unless --no-rotate)
+claudeportable backup   --to <folder> [--tier daily] [--include <groups>] [--skip <groups>]
+                                                       # create a backup ZIP (auto-rotates unless --no-rotate)
 claudeportable list     --in <folder> [--json]         # list backups
-claudeportable restore  --from <zip>  --yes [--target-user <path>] [--ignore-version-mismatch]
+claudeportable restore  --from <zip>  --yes [--target-user <path>] [--ignore-version-mismatch] [--include <groups>] [--skip <groups>]
 claudeportable rotate   --in <folder> [--daily 7] [--weekly 3] [--monthly 2]
-claudeportable schedule install|show|remove|emit       # Windows Task Scheduler integration
+claudeportable schedule install|show|remove|emit       # Windows Task Scheduler integration (install/emit accept --include/--skip)
 claudeportable schedule list [--all|--managed|--relevant] [--json]  # enumerate all scheduled tasks, flag Claude relevance
 claudeportable schedule disable|enable|run <name>       # toggle / trigger a scheduled task by full name
 ```
+
+### Choosing what to back up or restore
+
+`--include` and `--skip` take a comma-separated list of **groups**:
+
+| Group | Contains |
+|---|---|
+| `claude-desktop` | Claude Desktop app data, incl. Cowork session metadata |
+| `cowork` | Project folders opened in Cowork sessions |
+| `claude-code` | `%USERPROFILE%\.claude` (+ the shared `.agents` skill store) |
+| `codex` | `%CODEX_HOME%` / `.codex` and the Codex desktop app (+ the shared `.agents` skill store) |
+
+Aliases: `claude` = `claude-desktop,cowork,claude-code`; `all` = everything (the default). Examples:
+
+```
+claudeportable backup  --to D:\Backups --include codex           # Codex only
+claudeportable backup  --to D:\Backups --include claude          # Claude only (Desktop, Cowork, Code)
+claudeportable backup  --to D:\Backups --skip cowork             # everything except Cowork project folders
+claudeportable restore --from <zip> --yes --include claude-code   # restore just Claude Code from a full backup
+```
+
+Partial backups are named after their selection (`claude-backup_<ts>_<host>_codex_daily.zip`) and record it in `manifest.json` (`groups`). A restore only asks you to close the apps whose data it is actually writing: restoring Codex does not require quitting Claude Desktop, and the Claude Desktop version check only applies when Claude Desktop data is restored.
 
 Exit codes: `0` ok, `1` usage error, `2` precondition fail (destination unwritable, Claude Desktop or Codex running), `3` runtime error (I/O, invalid backup, version block).
 
@@ -118,7 +141,7 @@ rotation: promoted=0 pruned=0 -> daily=1 weekly=0 monthly=0
 
 ## Retention (7/3/2)
 
-Auto-rotation runs after every successful backup: the newest daily of each Sunday promotes to weekly; the newest weekly of each finished month promotes to monthly. Prune rules keep 7 daily / 3 weekly / 2 monthly per folder target. Promotion renames instead of copying, so the sync client only uploads one delta per promotion.
+Auto-rotation runs after every successful backup: the newest daily of each Sunday promotes to weekly; the newest weekly of each finished month promotes to monthly. Prune rules keep 7 daily / 3 weekly / 2 monthly per folder target **and per machine and selection**: several PCs can share one sync folder, and Claude-only or Codex-only backups never push out full backups (or each other). Promotion renames instead of copying, so the sync client only uploads one delta per promotion.
 
 Schedule yourself a recurring backup via the Windows Task Scheduler (`claudeportable schedule install --folder <path> --at 23:00`) or from the GUI tray icon.
 
@@ -210,7 +233,7 @@ dotnet build
 dotnet test
 ```
 
-174 xUnit cases cover exclusion globs (incl. Claude Extensions paths that must NOT be excluded), manifest (de)serialisation (incl. older manifests missing newer fields), path rewriter across escaped / single-backslash / forward-slash and arbitrary home-relative paths, profiles on other drives / outside `\Users` / with prefix-sharing or space-containing user names, junction recording and recreation (absolute, relative, missing target), Store package wildcard resolution, ZIP path-traversal rejection, retention rotation simulated over 10 weeks with a fake clock, FolderTarget atomic I/O, end-to-end backup roundtrip on synthetic data, Task Scheduler XML emission, version gating, and the scheduled-task enumerator (CSV parser for German-locale `schtasks.exe` output, Claude-relevance classifier, and command-shape assertions for the installer wrapper).
+189 xUnit cases cover exclusion globs (incl. Claude Extensions paths that must NOT be excluded), manifest (de)serialisation (incl. older manifests missing newer fields), path rewriter across escaped / single-backslash / forward-slash and arbitrary home-relative paths, profiles on other drives / outside `\Users` / with prefix-sharing or space-containing user names, junction recording and recreation (absolute, relative, missing target), backup/restore group selection and per-machine / per-selection retention, Store package wildcard resolution, ZIP path-traversal rejection, retention rotation simulated over 10 weeks with a fake clock, FolderTarget atomic I/O, end-to-end backup roundtrip on synthetic data, Task Scheduler XML emission, version gating, and the scheduled-task enumerator (CSV parser for German-locale `schtasks.exe` output, Claude-relevance classifier, and command-shape assertions for the installer wrapper).
 
 CI runs the same commands on `windows-latest` via `.github/workflows/ci.yml`. The release pipeline at `.github/workflows/release.yml` builds the MSI + portable exe + SHA-256 on `v*` tag push and attaches them to the GitHub Release.
 

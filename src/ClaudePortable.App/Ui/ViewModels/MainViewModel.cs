@@ -22,6 +22,7 @@ public sealed class MainViewModel : ViewModelBase
     private const string DefaultBackupFolderName = "ClaudePortable";
 
     private readonly TargetStore _store = new();
+    private readonly SettingsStore _settings = new();
     private string _status = Loc.T("Vm_Ready");
     private string _targetUserProfileOverride = string.Empty;
     private bool _ignoreVersionMismatch;
@@ -32,7 +33,14 @@ public sealed class MainViewModel : ViewModelBase
 
     public ObservableCollection<TargetEntry> Targets { get; } = new();
     public ObservableCollection<BackupEntry> Backups { get; } = new();
-    public ObservableCollection<DiscoveredClaudePath> ClaudePaths { get; } = new();
+    public ObservableCollection<DiscoveredPathRow> ClaudePaths { get; } = new();
+
+    /// <summary>"What to back up" checkboxes; persisted in settings.json and
+    /// also used when installing the scheduled backup task.</summary>
+    public ObservableCollection<GroupToggle> BackupGroups { get; } = new();
+
+    /// <summary>"What to restore" checkboxes; all ticked by default.</summary>
+    public ObservableCollection<GroupToggle> RestoreGroups { get; } = new();
     public ObservableCollection<DiscoveredSyncClient> SyncClients { get; } = new();
     public ScheduledTasksViewModel ScheduledTasks { get; } = new(new TaskSchedulerInstaller());
 
@@ -186,6 +194,13 @@ public sealed class MainViewModel : ViewModelBase
             UiLogSink.Instance.Append($"auto-discovered {discoveredCount} ClaudePortable folder(s) from sync clients.");
         }
 
+        var savedGroups = _settings.LoadBackupGroups();
+        foreach (var id in SourceGroups.All)
+        {
+            BackupGroups.Add(new GroupToggle(id, savedGroups is null || savedGroups.Contains(id), OnBackupGroupsChanged));
+            RestoreGroups.Add(new GroupToggle(id, isChecked: true));
+        }
+
         BackupNowCommand = new AsyncRelayCommand(BackupNowAsync);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync);
         AddTargetCommand = new RelayCommand(AddTarget);
@@ -199,6 +214,7 @@ public sealed class MainViewModel : ViewModelBase
         OpenChecklistCommand = new RelayCommand(OpenChecklist, () => !string.IsNullOrEmpty(PostRestoreChecklistPath));
 
         ScheduledTasks.ActiveTargetProvider = () => Targets.FirstOrDefault()?.Path;
+        ScheduledTasks.BackupGroupsProvider = () => GroupToggle.ToSelection(BackupGroups);
 
         Raise(nameof(ActiveTargetPath));
         _ = RefreshAsync();
@@ -225,6 +241,10 @@ public sealed class MainViewModel : ViewModelBase
     public void OnLanguageChanged()
     {
         Raise(nameof(ActiveTargetPath));
+        foreach (var toggle in BackupGroups.Concat(RestoreGroups))
+        {
+            toggle.RefreshLanguage();
+        }
         if (!IsBusy)
         {
             Status = Loc.T("Vm_Ready");
@@ -237,7 +257,7 @@ public sealed class MainViewModel : ViewModelBase
         ClaudePaths.Clear();
         foreach (var p in new WindowsPathDiscovery().Discover())
         {
-            ClaudePaths.Add(p);
+            ClaudePaths.Add(new DiscoveredPathRow(GroupLabels.ForSourceKey(p.Key), p.Key, p.Path, p.Exists));
         }
         SyncClients.Clear();
         foreach (var c in new SyncClientDiscovery().Discover())
@@ -263,8 +283,16 @@ public sealed class MainViewModel : ViewModelBase
             Status = Loc.T("Vm_NoTarget");
             return;
         }
+        if (!BackupGroups.Any(g => g.IsChecked))
+        {
+            Status = Loc.T("Vm_NothingSelected");
+            return;
+        }
+        var groups = GroupToggle.ToSelection(BackupGroups);
         var target = Targets.First();
-        UiLogSink.Instance.Append($"backup starting -> {target.Path}");
+        UiLogSink.Instance.Append(groups is null
+            ? $"backup starting -> {target.Path}"
+            : $"backup starting ({string.Join(", ", groups)}) -> {target.Path}");
         Status = Loc.T("Vm_BackingUp");
         BeginBusy(Loc.T("Vm_StartingBackup"));
         var progress = CreateProgress();
@@ -274,7 +302,7 @@ public sealed class MainViewModel : ViewModelBase
             {
                 var engine = new BackupEngine(new WindowsPathDiscovery(), new ZipArchiveWriter());
                 return await engine.CreateBackupAsync(
-                        new BackupRequest(target.Path, RetentionTier.Daily),
+                        new BackupRequest(target.Path, RetentionTier.Daily, Groups: groups),
                         progress)
                     .ConfigureAwait(false);
             }).ConfigureAwait(true);
@@ -413,9 +441,29 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        if (!await EnsureClaudeDesktopClosedAsync().ConfigureAwait(true))
+        if (!RestoreGroups.Any(g => g.IsChecked))
+        {
+            Status = Loc.T("Vm_NothingSelected");
+            return;
+        }
+        var groups = GroupToggle.ToSelection(RestoreGroups);
+        var restoring = RestoreEngine.GroupsToRestore(zipPath, groups);
+        if (restoring.Count == 0)
+        {
+            Status = Loc.T("Vm_RestoreNothingInBackup");
+            return;
+        }
+
+        if (restoring.Contains(SourceGroups.ClaudeDesktop)
+            && !await EnsureClosedAsync("Claude", "Dlg_CloseClaudeText", "Dlg_CloseClaudeTitle").ConfigureAwait(true))
         {
             Status = Loc.T("Vm_RestoreCancelledRunning");
+            return;
+        }
+        if (restoring.Contains(SourceGroups.Codex)
+            && !await EnsureClosedAsync("Codex", "Dlg_CloseCodexText", "Dlg_CloseCodexTitle").ConfigureAwait(true))
+        {
+            Status = Loc.T("Vm_RestoreCancelledRunningCodex");
             return;
         }
 
@@ -438,7 +486,8 @@ public sealed class MainViewModel : ViewModelBase
                             zipPath,
                             TargetUserProfile: targetOverride,
                             Confirmed: true,
-                            IgnoreVersionMismatch: IgnoreVersionMismatch),
+                            IgnoreVersionMismatch: IgnoreVersionMismatch,
+                            Groups: groups),
                         progress)
                     .ConfigureAwait(false);
             }).ConfigureAwait(true);
@@ -525,17 +574,17 @@ public sealed class MainViewModel : ViewModelBase
         });
     }
 
-    private static async Task<bool> EnsureClaudeDesktopClosedAsync()
+    private static async Task<bool> EnsureClosedAsync(string processName, string textKey, string titleKey)
     {
-        var running = System.Diagnostics.Process.GetProcessesByName("Claude");
+        var running = System.Diagnostics.Process.GetProcessesByName(processName);
         if (running.Length == 0)
         {
             return true;
         }
 
         var result = System.Windows.MessageBox.Show(
-            Loc.F("Dlg_CloseClaudeText", string.Join(", ", running.Select(p => p.Id))),
-            Loc.T("Dlg_CloseClaudeTitle"),
+            Loc.F(textKey, string.Join(", ", running.Select(p => p.Id))),
+            Loc.T(titleKey),
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning);
         if (result != System.Windows.MessageBoxResult.Yes)
@@ -559,7 +608,17 @@ public sealed class MainViewModel : ViewModelBase
 
         // Give Windows a beat to release handles + flush pending writes.
         await Task.Delay(1500).ConfigureAwait(true);
-        return System.Diagnostics.Process.GetProcessesByName("Claude").Length == 0;
+        return System.Diagnostics.Process.GetProcessesByName(processName).Length == 0;
+    }
+
+    private void OnBackupGroupsChanged()
+    {
+        var selection = GroupToggle.ToSelection(BackupGroups);
+        // An empty selection is not saved: it would read back as "everything".
+        if (BackupGroups.Any(g => g.IsChecked))
+        {
+            _settings.SaveBackupGroups(selection);
+        }
     }
 
     private void OpenChecklist()
@@ -637,6 +696,8 @@ public sealed class MainViewModel : ViewModelBase
 
 public sealed record TargetEntry(string Path);
 
+public sealed record DiscoveredPathRow(string Label, string Key, string Path, bool Exists);
+
 public sealed record BackupEntry(
     string TargetFolder,
     string FileName,
@@ -650,4 +711,9 @@ public sealed record BackupEntry(
         : Manifest is null
             ? ClaudePortable.App.Localization.Loc.T("Label_Unreadable")
             : ClaudePortable.App.Localization.Loc.T("Label_Synced");
+
+    /// <summary>Agents with data in this backup, e.g. "Claude Code, Codex".</summary>
+    public string ContentsLabel => Manifest is null
+        ? string.Empty
+        : GroupLabels.Join(SourceGroups.ContentsOf(Manifest));
 }

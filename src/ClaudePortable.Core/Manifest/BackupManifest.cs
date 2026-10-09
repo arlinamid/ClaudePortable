@@ -94,6 +94,15 @@ public sealed record BackupManifest
     public string? UserProfile { get; init; }
 
     /// <summary>
+    /// Source groups the user selected for this backup (see SourceGroups),
+    /// e.g. ["codex"]. Null for a full backup, which is also what every
+    /// backup made before selections existed was. Retention keeps each
+    /// selection separately so partial backups never prune full ones.
+    /// </summary>
+    [JsonPropertyName("groups")]
+    public IReadOnlyList<string>? Groups { get; init; }
+
+    /// <summary>
     /// Junctions / directory symlinks found inside a source. Their content is
     /// not archived (it lives elsewhere and may be huge or cyclic); restore
     /// recreates the link when its target exists on the restore machine.

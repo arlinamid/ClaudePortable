@@ -69,17 +69,21 @@ public sealed class RestoreEngine : IRestoreEngine
                 "Restore requires explicit confirmation. Pass --yes on the CLI or set Confirmed=true.");
         }
 
-        var running = GetRunningProcesses("Claude");
-        if (running.Count > 0)
-        {
-            throw new InvalidOperationException(
-                $"Claude Desktop is running (PID {string.Join(", ", running)}). Close it before restoring; its open file handles will cause 'Access denied' errors on %LOCALAPPDATA%\\Claude and %APPDATA%\\Claude.");
-        }
-
-        // Codex keeps its sqlite state open, so only block when this backup
-        // actually carries Codex data. Peek at the manifest before the
+        // Only demand that an app is closed when its data is actually about
+        // to be written: a Codex-only restore must not require quitting
+        // Claude, and vice versa. Peek at the manifest before the
         // (potentially multi-GB) extraction so the user fails fast.
-        if (ArchiveContainsCodex(request.SourceZipPath))
+        var restoring = GroupsToRestore(TryPeekManifest(request.SourceZipPath), request.Groups);
+        if (restoring.Contains(SourceGroups.ClaudeDesktop))
+        {
+            var running = GetRunningProcesses("Claude");
+            if (running.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Claude Desktop is running (PID {string.Join(", ", running)}). Close it before restoring; its open file handles will cause 'Access denied' errors on %LOCALAPPDATA%\\Claude and %APPDATA%\\Claude.");
+            }
+        }
+        if (restoring.Contains(SourceGroups.Codex))
         {
             var runningCodex = GetRunningProcesses("Codex");
             if (runningCodex.Count > 0)
@@ -108,7 +112,9 @@ public sealed class RestoreEngine : IRestoreEngine
 
             var installedVersion = ClaudeDesktopVersionReader.TryRead();
             var gate = VersionGating.Evaluate(manifest.ClaudeDesktopVersion, installedVersion);
-            if (gate.Level == VersionGateLevel.Block && !request.IgnoreVersionMismatch)
+            if (gate.Level == VersionGateLevel.Block
+                && !request.IgnoreVersionMismatch
+                && restoring.Contains(SourceGroups.ClaudeDesktop))
             {
                 throw new InvalidOperationException(gate.Message);
             }
@@ -227,6 +233,11 @@ public sealed class RestoreEngine : IRestoreEngine
 
         foreach (var (archivePrefix, originalPath) in manifest.ArchiveTargets)
         {
+            if (!SourceGroups.IsSelected(SourceGroups.ForArchivePrefix(archivePrefix), request.Groups))
+            {
+                continue;
+            }
+
             // Prefer where the app actually keeps its data on THIS machine:
             // Store vs. non-Store install, a different %CODEX_HOME%, or
             // redirected AppData all change it. Fall back to the backup
@@ -243,7 +254,8 @@ public sealed class RestoreEngine : IRestoreEngine
 
         foreach (var (archivePrefix, envRelative) in LegacyRestoreMap)
         {
-            if (seen.Contains(archivePrefix))
+            if (seen.Contains(archivePrefix)
+                || !SourceGroups.IsSelected(SourceGroups.ForArchivePrefix(archivePrefix), request.Groups))
             {
                 continue;
             }
@@ -427,7 +439,23 @@ public sealed class RestoreEngine : IRestoreEngine
         }
     }
 
-    private static bool ArchiveContainsCodex(string zipPath)
+    /// <summary>
+    /// Groups that a restore of this backup with this selection will write.
+    /// An unreadable manifest is treated as "everything", so the running-app
+    /// checks stay on the safe side; extraction then reports the real error.
+    /// </summary>
+    public static IReadOnlySet<string> GroupsToRestore(string zipPath, IReadOnlySet<string>? selection)
+        => GroupsToRestore(TryPeekManifest(zipPath), selection);
+
+    internal static IReadOnlySet<string> GroupsToRestore(BackupManifest? manifest, IReadOnlySet<string>? selection)
+    {
+        var contents = manifest is null ? SourceGroups.All : SourceGroups.ContentsOf(manifest);
+        return contents
+            .Where(g => selection is null || selection.Contains(g))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static BackupManifest? TryPeekManifest(string zipPath)
     {
         try
         {
@@ -435,17 +463,14 @@ public sealed class RestoreEngine : IRestoreEngine
             var entry = archive.GetEntry("manifest.json");
             if (entry is null)
             {
-                return false;
+                return null;
             }
             using var reader = new StreamReader(entry.Open());
-            var manifest = ManifestBuilder.Deserialize(reader.ReadToEnd());
-            return manifest.ArchiveTargets.Keys.Any(k => k.StartsWith("codex", StringComparison.OrdinalIgnoreCase));
+            return ManifestBuilder.Deserialize(reader.ReadToEnd());
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or System.Text.Json.JsonException)
         {
-            // Unreadable here means the extraction below fails with a
-            // clearer error; don't mask it with a process check.
-            return false;
+            return null;
         }
     }
 

@@ -30,13 +30,20 @@ public static class ScheduleCommand
         var timeOption = new Option<string>(new[] { "--at" }, () => "23:00", Loc.T("Cli_Schedule_At"));
         var nameOption = new Option<string>(new[] { "--name" }, () => "ClaudePortable-Daily", Loc.T("Cli_Schedule_Name"));
         var noInstallOption = new Option<bool>(new[] { "--no-install" }, () => false, Loc.T("Cli_Schedule_NoInstall"));
+        var includeOption = GroupOptions.CreateInclude();
+        var skipOption = GroupOptions.CreateSkip();
         var install = new Command("install", Loc.T("Cli_Schedule_Install_Desc"))
         {
-            folderOption, timeOption, nameOption, noInstallOption,
+            folderOption, timeOption, nameOption, noInstallOption, includeOption, skipOption,
         };
 
-        install.SetHandler(async (folder, atRaw, taskName, noInstall) =>
+        install.SetHandler(async (folder, atRaw, taskName, noInstall, include, skip) =>
         {
+            if (!GroupOptions.TryResolve(include, skip, out var groups))
+            {
+                return;
+            }
+
             if (!TimeOnly.TryParseExact(atRaw, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
             {
                 Console.Error.WriteLine(Loc.F("Cli_Schedule_ErrParseAt", atRaw));
@@ -49,7 +56,7 @@ public static class ScheduleCommand
             var spec = new ScheduleSpec(
                 TaskName: taskName,
                 ExecutablePath: exe,
-                Arguments: new[] { "backup", "--to", folder.FullName },
+                Arguments: ["backup", "--to", folder.FullName, .. GroupOptions.ToArguments(groups)],
                 DailyStart: at,
                 Description: Loc.F("Cli_Schedule_TaskDescription", folder.FullName));
 
@@ -77,7 +84,7 @@ public static class ScheduleCommand
                 return;
             }
             Console.WriteLine(Loc.F("Cli_Schedule_Installed", taskName, at.ToString("HH:mm", CultureInfo.InvariantCulture)));
-        }, folderOption, timeOption, nameOption, noInstallOption);
+        }, folderOption, timeOption, nameOption, noInstallOption, includeOption, skipOption);
         return install;
     }
 
@@ -298,12 +305,19 @@ public static class ScheduleCommand
         var folderOption = new Option<DirectoryInfo>(new[] { "--folder", "-f" }, Loc.T("Cli_Schedule_Folder")) { IsRequired = true };
         var timeOption = new Option<string>(new[] { "--at" }, () => "23:00", Loc.T("Cli_Schedule_At"));
         var nameOption = new Option<string>(new[] { "--name" }, () => "ClaudePortable-Daily", Loc.T("Cli_Schedule_Name"));
+        var includeOption = GroupOptions.CreateInclude();
+        var skipOption = GroupOptions.CreateSkip();
         var emit = new Command("emit", Loc.T("Cli_Schedule_Emit_Desc"))
         {
-            folderOption, timeOption, nameOption,
+            folderOption, timeOption, nameOption, includeOption, skipOption,
         };
-        emit.SetHandler((folder, atRaw, taskName) =>
+        emit.SetHandler((folder, atRaw, taskName, include, skip) =>
         {
+            if (!GroupOptions.TryResolve(include, skip, out var groups))
+            {
+                return;
+            }
+
             if (!TimeOnly.TryParseExact(atRaw, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
             {
                 Console.Error.WriteLine(Loc.F("Cli_Schedule_ErrParseAt", atRaw));
@@ -314,11 +328,11 @@ public static class ScheduleCommand
             var spec = new ScheduleSpec(
                 TaskName: taskName,
                 ExecutablePath: exe,
-                Arguments: new[] { "backup", "--to", folder.FullName },
+                Arguments: ["backup", "--to", folder.FullName, .. GroupOptions.ToArguments(groups)],
                 DailyStart: at,
                 Description: Loc.F("Cli_Schedule_TaskDescription", folder.FullName));
             Console.WriteLine(TaskSchedulerEmitter.ToXml(spec, DateTimeOffset.UtcNow));
-        }, folderOption, timeOption, nameOption);
+        }, folderOption, timeOption, nameOption, includeOption, skipOption);
         return emit;
     }
 }

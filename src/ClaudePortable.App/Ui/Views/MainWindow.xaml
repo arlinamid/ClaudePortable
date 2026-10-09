@@ -135,6 +135,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
@@ -166,20 +167,48 @@
                         </Border>
                     </UniformGrid>
 
-                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,12">
+                    <!-- What to back up: used by Backup now and the scheduled task -->
+                    <Border Style="{DynamicResource Card}" Grid.Row="3" Margin="0,0,0,20">
+                        <StackPanel>
+                            <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Status_WhatToBackUp}" />
+                            <StackPanel Margin="0,6,0,0">
+                                <ItemsControl ItemsSource="{Binding BackupGroups}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsChecked}"
+                                                      Content="{Binding Label}"
+                                                      ToolTip="{Binding Hint}"
+                                                      AutomationProperties.HelpText="{Binding Hint}"
+                                                      Foreground="#D6D3C9"
+                                                      Margin="0,4,24,4" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                            <TextBlock Style="{DynamicResource Muted}" Text="{loc:Loc Status_WhatToBackUpHint}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,12">
                         <TextBlock Style="{DynamicResource H2}" Text="{loc:Loc Status_RecentBackups}" VerticalAlignment="Center" />
                         <Button Content="{loc:Loc Common_Refresh}"
                                 Command="{Binding RefreshCommand}"
                                 HorizontalAlignment="Right" Margin="16,0,0,8" />
                     </StackPanel>
 
-                    <DataGrid Grid.Row="4"
+                    <DataGrid Grid.Row="5"
                               ItemsSource="{Binding Backups}"
                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="{loc:Loc Grid_Tier}" Binding="{Binding Manifest.RetentionTier}" Width="Auto" />
                             <DataGridTextColumn Header="{loc:Loc Grid_Created}" Binding="{Binding Manifest.CreatedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="Auto" />
                             <DataGridTextColumn Header="{loc:Loc Grid_Hostname}" Binding="{Binding Manifest.Hostname}" Width="Auto" />
+                            <DataGridTextColumn Header="{loc:Loc Grid_Contents}" Binding="{Binding ContentsLabel}" Width="Auto" />
                             <DataGridTextColumn Header="{loc:Loc Grid_Size}" Binding="{Binding SizeBytes, StringFormat=N0}" Width="Auto" />
                             <DataGridTextColumn Header="{loc:Loc Grid_File}" Binding="{Binding FileName}" Width="*" />
                         </DataGrid.Columns>
@@ -248,6 +277,7 @@
                         <DataGrid ItemsSource="{Binding ClaudePaths}"
                                   AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                             <DataGrid.Columns>
+                                <DataGridTextColumn Header="{loc:Loc Grid_Source}" Binding="{Binding Label}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_Key}" Binding="{Binding Key}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_Path}" Binding="{Binding Path}" Width="*" />
                                 <DataGridCheckBoxColumn Header="{loc:Loc Grid_Exists}" Binding="{Binding Exists}" Width="Auto" />
@@ -279,6 +309,7 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <TextBlock Style="{DynamicResource H1}" Text="{loc:Loc Nav_Restore}" />
@@ -294,12 +325,39 @@
                                 <DataGridTextColumn Header="{loc:Loc Grid_Tier}" Binding="{Binding Manifest.RetentionTier}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_Created}" Binding="{Binding Manifest.CreatedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_Hostname}" Binding="{Binding Manifest.Hostname}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Contents}" Binding="{Binding ContentsLabel}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_File}" Binding="{Binding FileName}" Width="*" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0" Grid.Row="4">
+                    <Border Style="{DynamicResource Card}" Grid.Row="4" Margin="0,16,0,0">
+                        <StackPanel>
+                            <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Restore_WhatToRestore}" />
+                            <StackPanel Margin="0,6,0,0">
+                                <ItemsControl ItemsSource="{Binding RestoreGroups}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsChecked}"
+                                                      Content="{Binding Label}"
+                                                      ToolTip="{Binding Hint}"
+                                                      AutomationProperties.HelpText="{Binding Hint}"
+                                                      Foreground="#D6D3C9"
+                                                      Margin="0,4,24,4" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                            <TextBlock Style="{DynamicResource Muted}" Text="{loc:Loc Restore_WhatToRestoreHint}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0" Grid.Row="5">
                         <Button Content="{loc:Loc Restore_RestoreSelected}"
                                 Style="{DynamicResource PrimaryButton}"
                                 Command="{Binding RestoreCommand}"
@@ -312,7 +370,7 @@
                                 Visibility="{Binding PostRestoreChecklistPath, Converter={StaticResource StringToVisible}}" />
                     </StackPanel>
 
-                    <Expander Grid.Row="5" Margin="0,16,0,0"
+                    <Expander Grid.Row="6" Margin="0,16,0,0"
                               Foreground="#D6D3C9"
                               Header="{loc:Loc Restore_AdvancedOptions}"
                               FontSize="13"

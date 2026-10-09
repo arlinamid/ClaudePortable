@@ -289,4 +289,34 @@ Ez végleges. Újra létrehozni csak az AgentPortable-ből telepítve vagy az XM
   <data name="Cli_Rotate_Promoted" xml:space="preserve"><value>előléptetve: {0}</value></data>
   <data name="Cli_Rotate_Pruned" xml:space="preserve"><value>törölve: {0}</value></data>
   <data name="Cli_Rotate_Counts" xml:space="preserve"><value>napi={0} heti={1} havi={2}</value></data>
+  <data name="Cli_Groups_Include" xml:space="preserve"><value>Csak ezek a csoportok: claude-desktop, cowork, claude-code, codex (vesszővel elválasztva; rövidítések: claude, all). Alapértelmezés: mind.</value></data>
+  <data name="Cli_Groups_Skip" xml:space="preserve"><value>Ezek a csoportok kimaradnak (ugyanazok a nevek, mint az --include-nál).</value></data>
+  <data name="Cli_Groups_Invalid" xml:space="preserve"><value>hiba: {0}</value></data>
+  <data name="Group_ClaudeDesktop" xml:space="preserve"><value>Claude Desktop</value></data>
+  <data name="Group_ClaudeDesktop_Hint" xml:space="preserve"><value>A Claude Desktop beállításai, csevegési állapota, bővítményei és a Cowork munkamenet-adatai (%APPDATA%\Claude).</value></data>
+  <data name="Group_Cowork" xml:space="preserve"><value>Cowork projektek</value></data>
+  <data name="Group_Cowork_Hint" xml:space="preserve"><value>A Cowork munkamenetekben megnyitott projektmappák (nagyok is lehetnek).</value></data>
+  <data name="Group_ClaudeCode" xml:space="preserve"><value>Claude Code</value></data>
+  <data name="Group_ClaudeCode_Hint" xml:space="preserve"><value>%USERPROFILE%\.claude: beállítások, CLAUDE.md, skillek, pluginek, munkamenetek. A közös .agents skill-mappát is tartalmazza.</value></data>
+  <data name="Group_Codex" xml:space="preserve"><value>Codex</value></data>
+  <data name="Group_Codex_Hint" xml:space="preserve"><value>%USERPROFILE%\.codex (vagy %CODEX_HOME%): config.toml, AGENTS.md, munkamenetek, skillek, valamint a Codex alkalmazás. A közös .agents skill-mappát is tartalmazza.</value></data>
+  <data name="Source_ClaudeDesktopAppData" xml:space="preserve"><value>Claude Desktop (alkalmazásadatok)</value></data>
+  <data name="Source_ClaudeDesktopLocalAppData" xml:space="preserve"><value>Claude Desktop (helyi adatok)</value></data>
+  <data name="Source_ClaudeCode" xml:space="preserve"><value>Claude Code</value></data>
+  <data name="Source_Codex" xml:space="preserve"><value>Codex (CLI + alkalmazásállapot)</value></data>
+  <data name="Source_CodexApp" xml:space="preserve"><value>Codex alkalmazás</value></data>
+  <data name="Source_Agents" xml:space="preserve"><value>Közös skillek (.agents)</value></data>
+  <data name="Grid_Source" xml:space="preserve"><value>FORRÁS</value></data>
+  <data name="Grid_Contents" xml:space="preserve"><value>TARTALOM</value></data>
+  <data name="Status_WhatToBackUp" xml:space="preserve"><value>Mit mentsünk</value></data>
+  <data name="Status_WhatToBackUpHint" xml:space="preserve"><value>A Mentés most és az automatikus mentési feladat is ezt használja (módosítás után telepítsd újra a feladatot az Ütemezés oldalon). A különböző kijelölésű mentések rotációja egymástól független.</value></data>
+  <data name="Restore_WhatToRestore" xml:space="preserve"><value>Mit állítsunk vissza</value></data>
+  <data name="Restore_WhatToRestoreHint" xml:space="preserve"><value>Csak a bejelölt részek állnak vissza, a gépen minden más érintetlen marad. Ami nincs a mentésben, kimarad.</value></data>
+  <data name="Vm_NothingSelected" xml:space="preserve"><value>Nincs kijelölés – jelölj be legalább egy elemet.</value></data>
+  <data name="Vm_RestoreNothingInBackup" xml:space="preserve"><value>A kiválasztott mentés egyik bejelölt elemet sem tartalmazza.</value></data>
+  <data name="Vm_RestoreCancelledRunningCodex" xml:space="preserve"><value>Visszaállítás megszakítva – a Codex még fut.</value></data>
+  <data name="Dlg_CloseCodexText" xml:space="preserve"><value>A Codex fut (PID {0}). A Codex alkalmazás és a codex CLI munkamenetek nyitva tartják a %USERPROFILE%\.codex mappát, ez meghiúsítja a visszaállítást.
+
+Bezárjam most az összes Codex folyamatot? A nyitott codex terminál-munkamenetek mentetlen munkája elvész. (Igen = zárd be helyettem, Nem = visszaállítás megszakítása)</value></data>
+  <data name="Dlg_CloseCodexTitle" xml:space="preserve"><value>Bezárjuk a Codexet?</value></data>
 </root>
