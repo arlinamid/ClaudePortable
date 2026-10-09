@@ -30,6 +30,7 @@ public sealed class MainViewModel : ViewModelBase
     private string _progressMessage = string.Empty;
     private double _progressValue;
     private bool _progressIsIndeterminate = true;
+    private CancellationTokenSource? _backupCts;
 
     public ObservableCollection<TargetEntry> Targets { get; } = new();
     public ObservableCollection<BackupEntry> Backups { get; } = new();
@@ -125,6 +126,10 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     public AsyncRelayCommand BackupNowCommand { get; }
+    public RelayCommand CancelBackupCommand { get; }
+
+    /// <summary>True while a backup runs; shows the Cancel button.</summary>
+    public bool IsBackupRunning => _backupCts is not null;
     public AsyncRelayCommand RefreshCommand { get; }
     public RelayCommand AddTargetCommand { get; }
     public RelayCommand RemoveTargetCommand { get; }
@@ -202,6 +207,13 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         BackupNowCommand = new AsyncRelayCommand(BackupNowAsync);
+        CancelBackupCommand = new RelayCommand(
+            () =>
+            {
+                _backupCts?.Cancel();
+                ProgressMessage = Loc.T("Vm_Cancelling");
+            },
+            () => _backupCts is not null);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync);
         AddTargetCommand = new RelayCommand(AddTarget);
         RemoveTargetCommand = new RelayCommand(RemoveTarget, () => SelectedTarget is not null);
@@ -296,16 +308,20 @@ public sealed class MainViewModel : ViewModelBase
         Status = Loc.T("Vm_BackingUp");
         BeginBusy(Loc.T("Vm_StartingBackup"));
         var progress = CreateProgress();
+        var warnings = new UiLogWriter();
+        using var cts = new CancellationTokenSource();
+        SetBackupCts(cts);
         try
         {
             var outcome = await Task.Run(async () =>
             {
-                var engine = new BackupEngine(new WindowsPathDiscovery(), new ZipArchiveWriter());
+                var engine = new BackupEngine(new WindowsPathDiscovery(), new ZipArchiveWriter(warnings));
                 return await engine.CreateBackupAsync(
                         new BackupRequest(target.Path, RetentionTier.Daily, Groups: groups),
-                        progress)
+                        progress,
+                        cts.Token)
                     .ConfigureAwait(false);
-            }).ConfigureAwait(true);
+            }, cts.Token).ConfigureAwait(true);
 
             UiLogSink.Instance.Append($"backup done: {Path.GetFileName(outcome.ZipPath)} ({outcome.Manifest.FileCount} files, {outcome.Manifest.SizeBytes:N0} bytes)");
             foreach (var (key, count) in outcome.FilesPerSource)
@@ -325,7 +341,14 @@ public sealed class MainViewModel : ViewModelBase
             ProgressIsIndeterminate = true;
             var report = await Task.Run(() => new RetentionManager().Rotate(new FolderTarget(target.Path))).ConfigureAwait(true);
             UiLogSink.Instance.Append($"rotation: promoted={report.Promoted.Count} pruned={report.Pruned.Count}");
-            Status = Loc.T("Vm_BackupComplete");
+            Status = warnings.LineCount == 0
+                ? Loc.T("Vm_BackupComplete")
+                : Loc.F("Vm_BackupCompleteSkipped", warnings.LineCount);
+        }
+        catch (OperationCanceledException)
+        {
+            UiLogSink.Instance.Append("backup cancelled by user; no ZIP was written.");
+            Status = Loc.T("Vm_BackupCancelled");
         }
         catch (Exception ex)
         {
@@ -334,6 +357,7 @@ public sealed class MainViewModel : ViewModelBase
         }
         finally
         {
+            SetBackupCts(null);
             EndBusy();
         }
         await RefreshAsync().ConfigureAwait(true);
@@ -536,6 +560,13 @@ public sealed class MainViewModel : ViewModelBase
             EndBusy();
         }
         await RefreshAsync().ConfigureAwait(true);
+    }
+
+    private void SetBackupCts(CancellationTokenSource? cts)
+    {
+        _backupCts = cts;
+        Raise(nameof(IsBackupRunning));
+        CancelBackupCommand.RaiseCanExecuteChanged();
     }
 
     private void BeginBusy(string initialMessage)

@@ -6,6 +6,33 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-09
+
+### Fixed
+
+- **Backup could hang forever at "Checking accessibility".** One file whose
+  open never returned stopped the whole backup, with no hint which file. On a
+  user's machine that can be a OneDrive / cloud-files placeholder whose
+  download cannot complete, a file held by another program or filter driver,
+  or a link to an unreachable network share. The ZIP writer now:
+  - skips cloud-only placeholders without opening them (the README always
+    said so; nothing actually checked)
+  - abandons an open after 30 s and a read that delivers no data for 60 s
+  - names every skipped file in the Logs tab (GUI) / stderr (CLI)
+  - the status bar says how many files were skipped
+- **Backups read every file once instead of three times.** The separate
+  accessibility check and hashing passes are gone: files are streamed into
+  the ZIP and hashed on the way, and `manifest.json` is written as the last
+  entry. The content hash is now SHA-256 over each file's path and its own
+  SHA-256; it is informational only, and nothing verifies against the old
+  definition.
+- A failed or cancelled backup no longer leaves a `.tmp` ZIP in the target
+  folder.
+
+### Added
+
+- **Cancel** button for a running backup (next to the progress bar).
+
 ## [0.4.0] - 2026-10-09
 
 ### Changed

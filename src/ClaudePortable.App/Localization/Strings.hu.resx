@@ -325,4 +325,8 @@ Bezárjam most az összes Codex folyamatot? A nyitott codex terminál-munkamenet
   <data name="Grid_ManagedBy" xml:space="preserve"><value>TÍPUS</value></data>
   <data name="Common_Yes" xml:space="preserve"><value>Igen</value></data>
   <data name="Common_No" xml:space="preserve"><value>Nem</value></data>
+  <data name="Common_Cancel" xml:space="preserve"><value>Mégse</value></data>
+  <data name="Vm_Cancelling" xml:space="preserve"><value>Megszakítás...</value></data>
+  <data name="Vm_BackupCancelled" xml:space="preserve"><value>Mentés megszakítva – semmi nem íródott ki.</value></data>
+  <data name="Vm_BackupCompleteSkipped" xml:space="preserve"><value>Mentés kész. {0} fájl kimaradt (zárolt, nem elérhető vagy csak felhőben van) – lásd Naplók.</value></data>
 </root>

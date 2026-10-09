@@ -325,4 +325,8 @@ Close all Codex processes now? Unsaved work in open codex terminal sessions is l
   <data name="Grid_ManagedBy" xml:space="preserve"><value>TYPE</value></data>
   <data name="Common_Yes" xml:space="preserve"><value>Yes</value></data>
   <data name="Common_No" xml:space="preserve"><value>No</value></data>
+  <data name="Common_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Vm_Cancelling" xml:space="preserve"><value>Cancelling...</value></data>
+  <data name="Vm_BackupCancelled" xml:space="preserve"><value>Backup cancelled - nothing was written.</value></data>
+  <data name="Vm_BackupCompleteSkipped" xml:space="preserve"><value>Backup complete. {0} file(s) were skipped (locked, unavailable or cloud-only) - see Logs.</value></data>
 </root>

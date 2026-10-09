@@ -67,7 +67,7 @@ Launch with no arguments (or `--gui`). Warm-dark UI in the Claude Desktop style,
 - **Logs** - last 500 log lines from the current session, rendered mono.
 - **Schedule** - enumerates every Windows scheduled task on this machine via `schtasks.exe /Query /FO CSV /V`. AgentPortable-managed entries are flagged green (name starts with `ClaudePortable-` / `AgentPortable-`, or the author contains either name). Tasks that aren't managed but touch a Claude/Cowork/`.claude`/`.codex` path - including hand-written backup PowerShell scripts that compete with AgentPortable - are flagged orange. Per-row buttons run/disable/enable/delete the task and copy its raw XML to the clipboard. Use this to spot legacy `\Claude-Desktop-Backup`-style tasks that write loose-file backups into a long-path OneDrive folder and break sync.
 
-A ProgressBar on the status bar appears for the duration of any backup or restore, showing the current phase (`Extracting archive`, `Writing cowork-projects/<hash>`, etc.) with file-level percentage. Both commands run on the thread pool so the window stays responsive during multi-GB operations.
+A ProgressBar on the status bar appears for the duration of any backup or restore, showing the current phase (`Extracting archive`, `Writing cowork-projects/<hash>`, etc.) with file-level percentage. Both commands run on the thread pool so the window stays responsive during multi-GB operations. A running backup can be stopped with **Cancel** next to the progress bar; no partial ZIP is left behind.
 
 A tray icon keeps the app alive in the background; closing the window hides it, `Quit` in the tray menu actually exits.
 
@@ -236,7 +236,7 @@ scripts/
 ## Security model
 
 - The app **never** archives OAuth tokens or credentials. `config.json` (contains `oauth:tokenCache`), `tokens.dat`, Codex `auth.json` and `.sandbox-secrets`, the Codex app's embedded browser profile, `Login Data*`, `Cookies*`, and `mcp-needs-auth-cache.json` are all explicitly excluded.
-- Live Claude Desktop files are opened with `FileShare.ReadWrite | FileShare.Delete`; unreadable ones are logged and skipped rather than failing the whole backup.
+- Every file is opened once, read-only, with `FileShare.ReadWrite | FileShare.Delete`, and streamed into the ZIP while it is hashed. A file that is locked, does not open within 30 s (e.g. held by another program or on an unreachable network share), or stops delivering data for 60 s is skipped with a warning naming it (Logs tab in the GUI, stderr on the CLI); the backup always finishes.
 - Restore refuses ZIP entries that would land outside its extraction folder (`../`, absolute paths), so a tampered backup cannot write elsewhere on disk.
 - Restore is two-stage: safety-rename of the existing folder, then file-by-file overlay. Nothing is deleted until you delete the safety backup manually.
 - Cowork project folder auto-discovery refuses drive roots, the user profile root, and every system folder - a misconfigured session cannot ask the tool to back up `C:\`.

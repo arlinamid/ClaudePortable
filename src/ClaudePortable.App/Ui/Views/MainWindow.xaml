@@ -42,6 +42,10 @@
                                  Minimum="0" Maximum="1"
                                  IsIndeterminate="{Binding ProgressIsIndeterminate}"
                                  Foreground="#D97757" Background="#33322F" BorderThickness="0" />
+                    <Button Content="{loc:Loc Common_Cancel}"
+                            Command="{Binding CancelBackupCommand}"
+                            Visibility="{Binding IsBackupRunning, Converter={StaticResource BoolToVisible}}"
+                            Padding="10,2" Margin="12,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
             </StatusBarItem>
         </StatusBar>
