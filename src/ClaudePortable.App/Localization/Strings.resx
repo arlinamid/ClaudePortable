@@ -63,7 +63,7 @@
   <data name="Targets_ActiveLabel" xml:space="preserve"><value>Active target:</value></data>
 
   <!-- Discovery page -->
-  <data name="Discovery_Caption" xml:space="preserve"><value>What AgentPortable found on this machine (Claude Desktop, Claude Code, Codex CLI and the Codex app). The EXISTS column is a read-only status indicator, not a toggle - paths that do not exist are skipped during backup. Cowork is not listed as its own row: session state lives under AppData\Roaming\Claude\local-agent-mode-sessions (already covered by the Claude Desktop AppData row), and the project folders you opened in Cowork are auto-discovered and backed up separately. Codex login tokens (auth.json) are never backed up.</value></data>
+  <data name="Discovery_Caption" xml:space="preserve"><value>What AgentPortable found on this machine (Claude Desktop, Claude Code, Codex CLI and the Codex app). Paths whose EXISTS column says No are skipped during backup; choose what to back up on the Status page. Cowork is not listed as its own row: session state lives under AppData\Roaming\Claude\local-agent-mode-sessions (already covered by the Claude Desktop AppData row), and the project folders you opened in Cowork are auto-discovered and backed up separately. Codex login tokens (auth.json) are never backed up.</value></data>
   <data name="Discovery_ClaudePaths" xml:space="preserve"><value>Agent paths</value></data>
   <data name="Discovery_SyncClients" xml:space="preserve"><value>Sync clients</value></data>
 
@@ -319,4 +319,10 @@ This is permanent. To re-create it you would have to re-install via AgentPortabl
 
 Close all Codex processes now? Unsaved work in open codex terminal sessions is lost. (Yes = close for me, No = cancel restore)</value></data>
   <data name="Dlg_CloseCodexTitle" xml:space="preserve"><value>Close Codex?</value></data>
+  <data name="A11y_Navigation" xml:space="preserve"><value>Navigation</value></data>
+  <data name="A11y_Language" xml:space="preserve"><value>Language</value></data>
+  <data name="A11y_ScheduledTasks" xml:space="preserve"><value>Scheduled tasks</value></data>
+  <data name="Grid_ManagedBy" xml:space="preserve"><value>TYPE</value></data>
+  <data name="Common_Yes" xml:space="preserve"><value>Yes</value></data>
+  <data name="Common_No" xml:space="preserve"><value>No</value></data>
 </root>

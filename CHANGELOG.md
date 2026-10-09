@@ -50,8 +50,29 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
     only for apps whose data is actually being restored. The Claude Desktop
     version check no longer blocks restores that skip Claude Desktop.
 
+- **Accessibility (WCAG 2.1 AA).**
+  - Headings are exposed as level-1 / level-2 headings.
+  - The status bar and Schedule status line are live regions.
+  - Text boxes, grids, lists, the language selector, the progress bar and
+    the ⋮ row button all have accessible names.
+  - Scheduled tasks gained a TYPE column, so managed / related / other is no
+    longer shown by colour alone.
+  - Read-only status columns show Yes / No instead of disabled check boxes.
+  - New `scripts/a11y-verify.ps1` checks the UI Automation tree of a running
+    build.
+
 ### Fixed
 
+- **Screen readers could not see any page content.** The page area hid its
+  tab headers, and WPF's TabControl exposes pages to UI Automation only
+  through those headers. Narrator / NVDA saw the sidebar and nothing else.
+  The page area is now a `PageHost` that exposes the visible page directly,
+  and sidebar items are announced by their label instead of
+  "System.Windows.Controls.ListBoxItem".
+- **Contrast fixes.** Text box / combo box outlines went from 2.0:1 to
+  3.6:1 (`ControlBorderColor` `#8A877F`). The white label on the pressed
+  primary button went from 4.3:1 to 5.2:1. The primary button's focus ring
+  is drawn outside the coral fill (1.8:1 on the fill, 8.7:1 on the page).
 - **Retention could delete other machines' backups.** Rotation counted
   every backup in a folder together, so two PCs syncing into the same
   OneDrive folder pruned each other's backups (and partial backups would

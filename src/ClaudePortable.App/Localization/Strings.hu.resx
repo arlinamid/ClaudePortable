@@ -63,7 +63,7 @@
   <data name="Targets_ActiveLabel" xml:space="preserve"><value>Aktív célmappa:</value></data>
 
   <!-- Discovery page -->
-  <data name="Discovery_Caption" xml:space="preserve"><value>Amit az AgentPortable ezen a gépen talált (Claude Desktop, Claude Code, Codex CLI és a Codex alkalmazás). A LÉTEZIK oszlop csak állapotjelző, nem kapcsoló – a nem létező útvonalak kimaradnak a mentésből. A Cowork nem szerepel külön sorként: a munkamenet-állapot az AppData\Roaming\Claude\local-agent-mode-sessions alatt van (ezt a Claude Desktop AppData sor már lefedi), a Coworkban megnyitott projektmappákat pedig a program automatikusan felderíti és külön menti. A Codex bejelentkezési tokenjei (auth.json) soha nem kerülnek a mentésbe.</value></data>
+  <data name="Discovery_Caption" xml:space="preserve"><value>Amit az AgentPortable ezen a gépen talált (Claude Desktop, Claude Code, Codex CLI és a Codex alkalmazás). Azok az útvonalak, amelyeknél a LÉTEZIK oszlop Nem, kimaradnak a mentésből; hogy mit mentsünk, az Állapot oldalon választhatod ki. A Cowork nem szerepel külön sorként: a munkamenet-állapot az AppData\Roaming\Claude\local-agent-mode-sessions alatt van (ezt a Claude Desktop AppData sor már lefedi), a Coworkban megnyitott projektmappákat pedig a program automatikusan felderíti és külön menti. A Codex bejelentkezési tokenjei (auth.json) soha nem kerülnek a mentésbe.</value></data>
   <data name="Discovery_ClaudePaths" xml:space="preserve"><value>Ügynök-útvonalak</value></data>
   <data name="Discovery_SyncClients" xml:space="preserve"><value>Szinkronizáló kliensek</value></data>
 
@@ -319,4 +319,10 @@ Ez végleges. Újra létrehozni csak az AgentPortable-ből telepítve vagy az XM
 
 Bezárjam most az összes Codex folyamatot? A nyitott codex terminál-munkamenetek mentetlen munkája elvész. (Igen = zárd be helyettem, Nem = visszaállítás megszakítása)</value></data>
   <data name="Dlg_CloseCodexTitle" xml:space="preserve"><value>Bezárjuk a Codexet?</value></data>
+  <data name="A11y_Navigation" xml:space="preserve"><value>Navigáció</value></data>
+  <data name="A11y_Language" xml:space="preserve"><value>Nyelv</value></data>
+  <data name="A11y_ScheduledTasks" xml:space="preserve"><value>Ütemezett feladatok</value></data>
+  <data name="Grid_ManagedBy" xml:space="preserve"><value>TÍPUS</value></data>
+  <data name="Common_Yes" xml:space="preserve"><value>Igen</value></data>
+  <data name="Common_No" xml:space="preserve"><value>Nem</value></data>
 </root>

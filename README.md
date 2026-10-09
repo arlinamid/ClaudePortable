@@ -58,7 +58,7 @@ Optional integrity check:
 
 ## GUI flows
 
-Launch with no arguments (or `--gui`). Warm-dark UI in the Claude Desktop style, WCAG 2.1 AA contrast throughout, visible keyboard focus rings. Six sections:
+Launch with no arguments (or `--gui`). Warm-dark UI in the Claude Desktop style, built to WCAG 2.1 AA (see [Accessibility](#accessibility)). Six sections:
 
 - **Status** - summary cards for backups / targets / discovered paths, the **What to back up** checkboxes (Claude Desktop, Cowork projects, Claude Code, Codex; saved in `settings.json` and used by *Backup now* and by the automatic backup task), plus a grid of existing snapshots per target with a **Contents** column.
 - **Targets** - folder list. Auto-discovers `<SyncClient>\ClaudePortable` on every recognised sync client (OneDrive Personal / Business, Dropbox, Google Drive Desktop), so a restore on a second machine picks up the first machine's backups without configuration. Manual add/remove available.
@@ -70,6 +70,22 @@ Launch with no arguments (or `--gui`). Warm-dark UI in the Claude Desktop style,
 A ProgressBar on the status bar appears for the duration of any backup or restore, showing the current phase (`Extracting archive`, `Writing cowork-projects/<hash>`, etc.) with file-level percentage. Both commands run on the thread pool so the window stays responsive during multi-GB operations.
 
 A tray icon keeps the app alive in the background; closing the window hides it, `Quit` in the tray menu actually exits.
+
+## Accessibility
+
+The GUI targets **WCAG 2.1 AA** and is usable with a keyboard and screen readers (Narrator, NVDA, JAWS):
+
+- **Screen readers see every page.** All controls are in the Windows UI Automation tree with an accessible name: sidebar items, buttons, check boxes, text boxes (named after their visible label), grids, and the language selector. Page titles and section titles are exposed as level-1 / level-2 headings.
+- **Status messages are announced.** The status bar and the Schedule status line are live regions, so a screen reader reads "Backup complete", errors and so on without moving focus.
+- **Contrast.** Text is at least 4.5:1 (body text 7:1 or more). Input outlines and focus rings are at least 3:1 against what surrounds them. The primary button's focus ring is drawn outside the coral fill so it contrasts with the page (8.7:1).
+- **Not by colour alone.** Scheduled tasks show a TYPE column (AgentPortable / Agent-related / Other) next to the coloured dot, and read-only status columns say Yes / No instead of showing disabled check boxes.
+- **Keyboard.** Every action is reachable with Tab / arrow keys and has a visible focus ring. The per-task ⋮ menu opens with Enter or Space.
+
+`scripts/a11y-verify.ps1` checks the automation tree of a running build: it visits every page, fails on unnamed interactive controls, and toggles a backup check box through UI Automation to confirm the change is saved. Run it after UI changes:
+
+```powershell
+pwsh scripts/a11y-verify.ps1
+```
 
 ## Languages (i18n)
 
@@ -206,6 +222,7 @@ docs/
   progress.md                    # Per-session checkpoint log
 scripts/
   build-exe.ps1                  # Local portable-exe build
+  a11y-verify.ps1                # UI Automation accessibility check of the GUI
   claude-path-diff.ps1           # Before/after snapshot diff for Phase 0 research
 ```
 

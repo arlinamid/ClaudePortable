@@ -32,12 +32,16 @@
     <Color x:Key="TextMutedColor">#B5B2A8</Color>
     <Color x:Key="AccentColor">#D97757</Color>
     <Color x:Key="AccentHoverColor">#E28F6F</Color>
-    <Color x:Key="AccentPressedColor">#B96340</Color>
+    <!-- #A85636: white pressed-state label = 5.19:1 (WCAG 1.4.3) -->
+    <Color x:Key="AccentPressedColor">#A85636</Color>
     <Color x:Key="AccentFgColor">#1F1E1D</Color>
     <Color x:Key="SuccessColor">#8FB38F</Color>
     <Color x:Key="WarnColor">#D4A574</Color>
     <Color x:Key="ErrorColor">#E57B73</Color>
     <Color x:Key="FocusRingColor">#F0B896</Color>
+    <!-- Outline of text boxes / combo boxes: 3.57:1 on Surface, 4.23:1 on Bg
+         (WCAG 1.4.11 non-text contrast). BorderColor stays for decorative lines. -->
+    <Color x:Key="ControlBorderColor">#8A877F</Color>
 
     <SolidColorBrush x:Key="BgBrush" Color="{StaticResource BgColor}" />
     <SolidColorBrush x:Key="SidebarBrush" Color="{StaticResource SidebarColor}" />
@@ -55,6 +59,7 @@
     <SolidColorBrush x:Key="WarnBrush" Color="{StaticResource WarnColor}" />
     <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
     <SolidColorBrush x:Key="FocusRingBrush" Color="{StaticResource FocusRingColor}" />
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="{StaticResource ControlBorderColor}" />
 
     <FontFamily x:Key="UiFont">Segoe UI</FontFamily>
     <FontFamily x:Key="MonoFont">Cascadia Mono,Consolas,Courier New</FontFamily>
@@ -79,6 +84,7 @@
 
     <!-- H1: 28pt Bold, pure white -->
     <Style x:Key="H1" TargetType="TextBlock">
+        <Setter Property="AutomationProperties.HeadingLevel" Value="Level1" />
         <Setter Property="FontSize" Value="28" />
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Foreground" Value="#FFFFFF" />
@@ -89,6 +95,7 @@
 
     <!-- H2: 17pt Bold, pure white -->
     <Style x:Key="H2" TargetType="TextBlock">
+        <Setter Property="AutomationProperties.HeadingLevel" Value="Level2" />
         <Setter Property="FontSize" Value="17" />
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Foreground" Value="#FFFFFF" />
@@ -137,11 +144,15 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                            BorderBrush="{StaticResource FocusRingBrush}" BorderThickness="0"
-                            CornerRadius="8" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          TextBlock.Foreground="{TemplateBinding Foreground}" />
+                    <!-- Focus ring sits outside the coral fill, separated by a
+                         2px gap, so it contrasts with the page, not the fill. -->
+                    <Border x:Name="Ring" BorderBrush="{StaticResource FocusRingBrush}" BorderThickness="0"
+                            CornerRadius="11" Padding="2" Margin="-4">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextBlock.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -152,7 +163,7 @@
                             <Setter Property="Foreground" Value="#FFFFFF" />
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Bd" Property="BorderThickness" Value="2" />
+                            <Setter TargetName="Ring" Property="BorderThickness" Value="2" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Bd" Property="Opacity" Value="0.5" />
@@ -440,7 +451,10 @@
             <Setter.Value>
                 <ControlTemplate TargetType="TabControl">
                     <Grid Background="{StaticResource BgBrush}">
-                        <ContentPresenter ContentSource="SelectedContent" />
+                        <!-- The name matters: TabItem automation peers find the page
+                             content through this part. Without it every page was
+                             invisible to screen readers (WCAG 4.1.2). -->
+                        <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent" />
                     </Grid>
                 </ControlTemplate>
             </Setter.Value>
@@ -467,7 +481,7 @@
         <Setter Property="Background" Value="{StaticResource SidebarBrush}" />
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
         <Setter Property="CaretBrush" Value="{StaticResource TextPrimaryBrush}" />
-        <Setter Property="BorderBrush" Value="#4A4944" />
+        <Setter Property="BorderBrush" Value="{StaticResource ControlBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="10,6" />
         <Style.Triggers>
@@ -511,7 +525,7 @@
     <Style x:Key="DarkCombo" TargetType="ComboBox">
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
         <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
-        <Setter Property="BorderBrush" Value="#4A4944" />
+        <Setter Property="BorderBrush" Value="{StaticResource ControlBorderBrush}" />
         <Setter Property="ItemContainerStyle" Value="{StaticResource DarkComboItem}" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
         <Setter Property="Template">
@@ -526,7 +540,7 @@
                                 <ControlTemplate TargetType="ToggleButton">
                                     <Border x:Name="Chrome"
                                             Background="{StaticResource SurfaceBrush}"
-                                            BorderBrush="#4A4944"
+                                            BorderBrush="{StaticResource ControlBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="6">
                                         <TextBlock Text="&#xE70D;"
