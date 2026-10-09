@@ -15,8 +15,51 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   folder, `%LOCALAPPDATA%\ClaudePortable`, `<SyncClient>\ClaudePortable`,
   `claude-backup_*.zip` and `ClaudePortable-Daily` task names are unchanged.
   Tasks named `AgentPortable-*` are also recognised as managed.
+- **Links are recorded, not followed.** Junctions and directory symlinks
+  inside a backup source (e.g. `.claude\skills\x -> .agents\skills\x` from
+  `npx skills add`, or a skill junctioned to a git checkout) used to be
+  copied into the ZIP wholesale and restored as real folders, and a link
+  cycle could recurse until the path got too long. They are now stored in
+  the manifest's new `links` list and recreated after all folders are
+  restored: a junction for absolute local targets (no admin rights needed),
+  otherwise a symlink, with a warning and the exact `mklink /J` command when
+  the target does not exist on the restore machine. Folders matched by a
+  whole-subtree exclusion (`node_modules`, caches, ...) are now skipped
+  without being listed, which speeds up backups of large Cowork projects.
+- **Restore targets are resolved on the restore machine.** When Claude
+  Desktop, Claude Code, Codex or `.agents` already has a data folder there
+  (Store vs. non-Store install, custom `%CODEX_HOME%`, redirected AppData),
+  that folder is used instead of the backup machine's path.
+- The Claude Desktop Store package folder is matched as `Claude_*` instead of
+  one hard-coded publisher id, like `OpenAI.Codex_*`.
+
+### Fixed
+
+- **Claude Code's OAuth tokens were included in backups.**
+  `.claude\.credentials.json` is now excluded, as the README always promised,
+  and carried over from the safety backup on a same-machine restore.
+- Path rewriting on restore only swapped the user name inside `X:\Users\<name>`
+  paths. It now rewrites the whole backup-machine profile root, which the
+  manifest records as `userProfile`. Profiles on another drive or outside
+  `\Users` (`D:\Profiles\anna.CORP`) are therefore handled. A user name that
+  prefixes another one (`sam` / `samantha`) or contains a space is not
+  rewritten by mistake.
+- Manifests from older versions had `null` collections after loading,
+  because the JSON source generator assigns missing init-only properties.
+  For example, `archiveTargets` was null in pre-0.1.13 backups, which broke
+  restore. These collections now always load as empty.
+- Restore rejects ZIP entries that would be extracted outside the temp
+  folder (`../`, absolute paths).
+- Cowork project discovery now finds sessions through the same Store-app
+  reparse fallback as the main discovery, instead of assuming
+  `%APPDATA%\Claude` is readable.
 
 ### Added
+
+- **`%USERPROFILE%\.agents` backup** (`agents/dotagents`): the shared skill
+  store used by `npx skills` and read by Codex as its user skills folder.
+  Without it, linked skills would be lost on a new machine now that links
+  are no longer followed.
 
 - **Codex backup.** The OpenAI Codex state root (`%CODEX_HOME%`, default
   `%USERPROFILE%\.codex`) is backed up under `codex/dotcodex`: `config.toml`,

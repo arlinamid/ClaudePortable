@@ -21,10 +21,13 @@ Windows desktop app (WPF + CLI) that backs up and restores your AI coding agents
 | Claude Code plugins / skills | Under `.claude\plugins\` and `.claude\skills\` | Content preserved. Remote plugin binary cache (`.remote-plugins/`) is excluded; a fresh `claude plugin sync` after restore refills it. |
 | **Codex CLI / app state** | `%CODEX_HOME%`, default `%USERPROFILE%\.codex` | `config.toml`, `AGENTS.md`, `sessions/` + `archived_sessions/` (conversation history), `skills/`, `rules/`, `agents/`, memories, `hooks.json`, `generated_images/`, and the sqlite state/thread-history databases. Excluded: `auth.json`, sandbox identity (`.sandbox*`, `cap_sid`, `installation_id`), downloaded binaries (`packages/`, `plugins/.plugin-appserver/`), plugin cache, logs, locks and temp folders. |
 | Codex desktop app | `%APPDATA%\Codex` (Store package `OpenAI.Codex_*`, resolved by wildcard) | Preferences, Local Storage. The embedded browser profile (`web/`, cookies and site logins) and Chromium caches are excluded. |
+| Shared agent skills | `%USERPROFILE%\.agents` | Skills installed with `npx skills add` live here and are linked into `.claude\skills`; Codex reads `.agents\skills` directly. |
+| Links (junctions / symlinks) | Any linked folder inside the sources above | Recorded in the manifest, **not** followed. See [Links](#links-junctions-and-symlinks). |
 
 Explicitly **not** in scope, on purpose:
 
-- OAuth refresh tokens, API keys, `config.json` with `oauth:tokenCache`, DPAPI blobs, Codex `auth.json` - user re-authenticates connectors, Claude Code (`claude login`) and Codex (`codex login`) after restore. On a same-machine restore the existing Codex `auth.json` and sandbox setup are carried over from the safety backup, so you stay signed in.
+- OAuth refresh tokens, API keys, `config.json` with `oauth:tokenCache`, DPAPI blobs, Claude Code `.credentials.json`, Codex `auth.json` - user re-authenticates connectors, Claude Code (`claude login`) and Codex (`codex login`) after restore. On a same-machine restore the existing Claude Code / Codex credentials and the Codex sandbox setup are carried over from the safety backup, so you stay signed in.
+- `%USERPROFILE%\.claude.json` (Claude Code's global settings file next to the `.claude` folder, incl. user-scoped MCP servers). It also holds machine and account identifiers, so it is not restored over a fresh install; re-add user-scoped MCP servers with `claude mcp add --scope user`.
 - Active Cowork VM runtime state (processes, scheduled tasks) - only persistent artifacts.
 - Cloud-client upload status - AgentPortable writes to a folder, the sync client propagates. Zip destination is flagged if the folder carries `FILE_ATTRIBUTE_OFFLINE` / `RECALL_ON_DATA_ACCESS` so you know OneDrive / GDrive is behind.
 
@@ -131,7 +134,17 @@ The typical workflow across two machines:
 6. Click **Restore selected snapshot**. Existing `.claude` and `%APPDATA%\Claude` content is moved aside to `<folder>_backup_<timestamp>` before the new data is written.
 7. After completion, `claude login` and `codex login` on the laptop and re-authorise any connectors - token caches were deliberately excluded.
 
+Where each folder is restored is decided **on the restore machine**: if Claude Desktop, Claude Code, Codex or `.agents` already has a data folder there (Store or non-Store install, a custom `%CODEX_HOME%`, redirected AppData), that folder is used. Otherwise the backup machine's path is re-rooted to the current profile. Paths inside JSON / TOML configs are rewritten from the backup machine's `%USERPROFILE%` (recorded in the manifest) to the new one, so profiles on another drive or outside `C:\Users` work too, e.g. `C:\Users\anna` -> `D:\Profiles\anna.CORP`.
+
 Store-app reparse points (Claude Desktop from the Microsoft Store) refuse `Directory.Move` on their targets, so the restore engine detects them and overlays files instead of renaming. This is expected and logged as a single informational warning, not an error.
+
+## Links (junctions and symlinks)
+
+Skill and plugin folders are often links: `npx skills add` links `.claude\skills\<name>` to `.agents\skills\<name>`, and many people junction a skill to the git checkout they develop it in. Backups do **not** follow links inside a source, because the linked content lives elsewhere, can be huge, and can form cycles. Instead:
+
+- **Backup** records every linked folder (`links` in `manifest.json`: archive path + original target) and prints it (`link (not followed, recreated on restore): ...`). Links inside excluded folders (`node_modules` etc.) are ignored. A source folder that is itself a link (e.g. `.claude` junctioned to a dotfiles repo) is still backed up normally. OneDrive / cloud-files folders are reparse points too but not links, so they are backed up normally.
+- **Restore** recreates each link after all folders are written, when its target exists on the restore machine. Absolute targets under the old profile are re-rooted to the new one. Absolute local targets become junctions (no admin rights needed). Relative targets become symlinks when Developer Mode allows it, and junctions to the resolved path otherwise.
+- If the target does **not** exist (e.g. `D:\src\my-skill` was never cloned on the new machine), restore lists a warning with the exact `mklink /J` command to run once you have restored that folder.
 
 ## Architecture
 
@@ -184,6 +197,7 @@ scripts/
 
 - The app **never** archives OAuth tokens or credentials. `config.json` (contains `oauth:tokenCache`), `tokens.dat`, Codex `auth.json` and `.sandbox-secrets`, the Codex app's embedded browser profile, `Login Data*`, `Cookies*`, and `mcp-needs-auth-cache.json` are all explicitly excluded.
 - Live Claude Desktop files are opened with `FileShare.ReadWrite | FileShare.Delete`; unreadable ones are logged and skipped rather than failing the whole backup.
+- Restore refuses ZIP entries that would land outside its extraction folder (`../`, absolute paths), so a tampered backup cannot write elsewhere on disk.
 - Restore is two-stage: safety-rename of the existing folder, then file-by-file overlay. Nothing is deleted until you delete the safety backup manually.
 - Cowork project folder auto-discovery refuses drive roots, the user profile root, and every system folder - a misconfigured session cannot ask the tool to back up `C:\`.
 - Backups are unencrypted. If that matters, point the tool at a local folder that your sync client encrypts before upload, or keep the ZIP on an encrypted volume (BitLocker, VeraCrypt).
@@ -196,7 +210,7 @@ dotnet build
 dotnet test
 ```
 
-142 xUnit cases cover exclusion globs (incl. Claude Extensions paths that must NOT be excluded), manifest (de)serialisation, path rewriter across escaped / single-backslash / forward-slash and arbitrary home-relative paths, retention rotation simulated over 10 weeks with a fake clock, FolderTarget atomic I/O, end-to-end backup roundtrip on synthetic data, Task Scheduler XML emission, version gating, and the scheduled-task enumerator (CSV parser for German-locale `schtasks.exe` output, Claude-relevance classifier, and command-shape assertions for the installer wrapper).
+174 xUnit cases cover exclusion globs (incl. Claude Extensions paths that must NOT be excluded), manifest (de)serialisation (incl. older manifests missing newer fields), path rewriter across escaped / single-backslash / forward-slash and arbitrary home-relative paths, profiles on other drives / outside `\Users` / with prefix-sharing or space-containing user names, junction recording and recreation (absolute, relative, missing target), Store package wildcard resolution, ZIP path-traversal rejection, retention rotation simulated over 10 weeks with a fake clock, FolderTarget atomic I/O, end-to-end backup roundtrip on synthetic data, Task Scheduler XML emission, version gating, and the scheduled-task enumerator (CSV parser for German-locale `schtasks.exe` output, Claude-relevance classifier, and command-shape assertions for the installer wrapper).
 
 CI runs the same commands on `windows-latest` via `.github/workflows/ci.yml`. The release pipeline at `.github/workflows/release.yml` builds the MSI + portable exe + SHA-256 on `v*` tag push and attaches them to the GitHub Release.
 
@@ -219,6 +233,8 @@ pwsh src/ClaudePortable.Installer/build-msi.ps1 -Version 0.2.0
 - Unsigned binaries; SmartScreen warning on first run. Signing is tracked in [the issues](../../issues).
 - First launch of the portable exe extracts its bundled runtime to `%LOCALAPPDATA%\.net\<app>\<hash>\` (~600 MB cached, one-time); the MSI avoids this.
 - The portable binary targets `net10.0-windows`. Windows 10 1809+ / Windows 11 x64.
+- Content behind links that point outside the backed-up folders (e.g. a skill junctioned to `D:\src\my-skill`) is not in the ZIP; only the link is. Restore that folder yourself (e.g. `git clone`) and the link is recreated on restore or via the printed `mklink /J` command.
+- Claude Code or Codex installed inside WSL keep their state in the Linux home (`~/.claude`, `~/.codex` inside the distro) and are not discovered.
 - Cowork project auto-discovery only sees the folders referenced in session metadata. Projects you opened only via drag-and-drop or in the terminal are not captured - add them as explicit Targets if needed.
 - OneDrive cloud-only placeholders are logged and skipped rather than downloaded; if you need them in the backup, right-click -> "Always keep on this device" before running backup.
 

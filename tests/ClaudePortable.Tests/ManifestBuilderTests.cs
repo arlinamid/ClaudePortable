@@ -56,6 +56,36 @@ public class ManifestBuilderTests
     }
 
     [Fact]
+    public void SerializeThenDeserialize_KeepsUserProfileAndLinks()
+    {
+        var original = ManifestBuilder.Build(
+            new List<DiscoveredClaudePath>(),
+            DefaultExclusions.Globs,
+            RetentionTier.Daily,
+            DateTimeOffset.UtcNow,
+            links: [new BackupLink("codex/dotcodex/skills/my-skill", @"D:\src\my-skill")]);
+
+        var parsed = ManifestBuilder.Deserialize(ManifestBuilder.Serialize(original));
+
+        Assert.Equal(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), parsed.UserProfile);
+        var link = Assert.Single(parsed.Links);
+        Assert.Equal("codex/dotcodex/skills/my-skill", link.Path);
+        Assert.Equal(@"D:\src\my-skill", link.Target);
+    }
+
+    [Fact]
+    public void Deserialize_OldManifestWithoutNewFields_DefaultsSafely()
+    {
+        var parsed = ManifestBuilder.Deserialize("""{"schemaVersion":2,"hostname":"old"}""");
+
+        Assert.Null(parsed.UserProfile);
+        Assert.Empty(parsed.Links);
+        Assert.Empty(parsed.ArchiveTargets);
+        Assert.Empty(parsed.SourcePaths);
+        Assert.Empty(parsed.ExcludedPaths);
+    }
+
+    [Fact]
     public void Serialize_EmitsCamelCaseFields()
     {
         var paths = new List<DiscoveredClaudePath>();

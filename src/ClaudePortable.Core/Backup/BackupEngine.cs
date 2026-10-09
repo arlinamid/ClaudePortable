@@ -60,13 +60,14 @@ public sealed class BackupEngine : IBackupEngine
         var filesPerSource = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var archiveTargets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var entries = new List<ArchiveEntry>();
+        var links = new List<BackupLink>();
 
         foreach (var p in existingPaths)
         {
             progress?.Report(new OperationProgress($"Enumerating {p.Key}"));
             var before = entries.Count;
-            var archivePrefix = MapArchivePrefix(p.Key);
-            entries.AddRange(FileEnumerator.Enumerate(p.Path, archivePrefix, exclusions));
+            var archivePrefix = SourceLayout.PrefixFor(p.Key);
+            entries.AddRange(FileEnumerator.Enumerate(p.Path, archivePrefix, exclusions, links));
             filesPerSource[p.Key] = entries.Count - before;
             archiveTargets[archivePrefix] = p.Path;
         }
@@ -77,7 +78,7 @@ public sealed class BackupEngine : IBackupEngine
             var key = CoworkProjectKeyPrefix + project.Hash;
             var archivePrefix = CoworkProjectArchivePrefix + project.Hash;
             var before = entries.Count;
-            entries.AddRange(FileEnumerator.Enumerate(project.Path, archivePrefix, exclusions));
+            entries.AddRange(FileEnumerator.Enumerate(project.Path, archivePrefix, exclusions, links));
             filesPerSource[key] = entries.Count - before;
             archiveTargets[archivePrefix] = project.Path;
         }
@@ -105,7 +106,8 @@ public sealed class BackupEngine : IBackupEngine
             fileCount: approxFileCount,
             claudeDesktopVersion: ClaudeDesktopVersionReader.TryRead(),
             coworkProjects: coworkProjects,
-            archiveTargets: archiveTargets);
+            archiveTargets: archiveTargets,
+            links: links);
 
         if (request.DryRun)
         {
@@ -167,16 +169,6 @@ public sealed class BackupEngine : IBackupEngine
         var tierLower = tier.ToString().ToLowerInvariant();
         return $"claude-backup_{iso}_{Environment.MachineName}_{tierLower}.zip";
     }
-
-    private static string MapArchivePrefix(string key) => key switch
-    {
-        "claudeDesktopAppData" => "claude-desktop/appdata",
-        "claudeDesktopLocalAppData" => "claude-desktop/localappdata",
-        "claudeCodeUserProfile" => "claude-code/dotclaude",
-        "codexUserProfile" => "codex/dotcodex",
-        "codexDesktopAppData" => "codex-desktop/appdata",
-        _ => key,
-    };
 
     private static ArchiveEntry BuildChecklistEntry()
     {

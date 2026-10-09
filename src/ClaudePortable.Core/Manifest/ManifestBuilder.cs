@@ -19,7 +19,8 @@ public static class ManifestBuilder
         string sha256 = Sha256Placeholder,
         string? claudeDesktopVersion = null,
         IReadOnlyList<CoworkProjectFolder>? coworkProjects = null,
-        IReadOnlyDictionary<string, string>? archiveTargets = null)
+        IReadOnlyDictionary<string, string>? archiveTargets = null,
+        IReadOnlyList<BackupLink>? links = null)
     {
         var toolVersion = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
@@ -55,6 +56,8 @@ public static class ManifestBuilder
             Sha256 = sha256,
             ExcludedPaths = excludedGlobs,
             ToolVersion = toolVersion,
+            UserProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Links = links ?? Array.Empty<BackupLink>(),
         };
     }
 

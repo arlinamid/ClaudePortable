@@ -24,6 +24,9 @@ public static class DefaultExclusions
         "**/LOCK",
         "**/debug/latest",
         "claude-desktop/appdata/config.json",
+        // Claude Code's OAuth tokens (plaintext on Windows). Restore carries
+        // the live copy over on the same machine; elsewhere: `claude login`.
+        "claude-code/dotclaude/.credentials.json",
         // "**/local-agent-mode-sessions/**" used to be here, excluded as
         // "ephemeral agent state". Removed 2026-04-23 after a user-
         // reported restore showed these are actually the Cowork

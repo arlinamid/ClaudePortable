@@ -202,6 +202,7 @@ This is permanent. To re-create it you would have to re-install via AgentPortabl
   <data name="Cli_Backup_Bytes" xml:space="preserve"><value>bytes:   {0}</value></data>
   <data name="Cli_Backup_Sha256" xml:space="preserve"><value>sha256:  {0}</value></data>
   <data name="Cli_Backup_PerSource" xml:space="preserve"><value>  {0}: {1} files</value></data>
+  <data name="Cli_Backup_Link" xml:space="preserve"><value>  link (not followed, recreated on restore): {0} -&gt; {1}</value></data>
   <data name="Cli_Backup_SkippedWarn" xml:space="preserve"><value>warning: skipped path (not present): {0} &lt;- {1}</value></data>
   <data name="Cli_Rotation_Summary" xml:space="preserve"><value>rotation: promoted={0} pruned={1} -&gt; daily={2} weekly={3} monthly={4}</value></data>
   <data name="Cli_Rotation_Promoted" xml:space="preserve"><value>  promoted: {0}</value></data>

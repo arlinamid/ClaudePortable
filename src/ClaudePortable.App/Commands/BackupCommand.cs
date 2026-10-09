@@ -76,6 +76,10 @@ public static class BackupCommand
                 {
                     Console.WriteLine(Loc.F("Cli_Backup_DryRunSource", key, cnt));
                 }
+                foreach (var link in outcome.Manifest.Links)
+                {
+                    Console.WriteLine(Loc.F("Cli_Backup_Link", link.Path, link.Target));
+                }
                 foreach (var skipped in outcome.SkippedPaths)
                 {
                     Console.Error.WriteLine(Loc.F("Cli_Backup_DryRunSkipped", skipped.Key, skipped.Path));
@@ -90,6 +94,10 @@ public static class BackupCommand
             foreach (var (key, cnt) in outcome.FilesPerSource)
             {
                 Console.WriteLine(Loc.F("Cli_Backup_PerSource", key, cnt));
+            }
+            foreach (var link in outcome.Manifest.Links)
+            {
+                Console.WriteLine(Loc.F("Cli_Backup_Link", link.Path, link.Target));
             }
             foreach (var skipped in outcome.SkippedPaths)
             {

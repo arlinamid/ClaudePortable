@@ -40,13 +40,16 @@ public sealed class CoworkProjectDiscovery : ClaudePortable.Core.Abstractions.IC
 
     public static IReadOnlyList<CoworkProjectFolder> Discover()
     {
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        if (string.IsNullOrEmpty(appData))
+        // Use the same resolution as the main discovery (Store-app reparse
+        // fallback included) instead of assuming %APPDATA%\Claude is readable.
+        var claudeAppData = new WindowsPathDiscovery().Discover()
+            .FirstOrDefault(p => p.Exists && p.Key == "claudeDesktopAppData")?.Path;
+        if (string.IsNullOrEmpty(claudeAppData))
         {
             return Array.Empty<CoworkProjectFolder>();
         }
 
-        var sessionsRoot = Path.Combine(appData, "Claude", "local-agent-mode-sessions");
+        var sessionsRoot = Path.Combine(claudeAppData, "local-agent-mode-sessions");
         if (!Directory.Exists(sessionsRoot))
         {
             return Array.Empty<CoworkProjectFolder>();

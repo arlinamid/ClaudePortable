@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.Versioning;
 using ClaudePortable.Core.Abstractions;
+using ClaudePortable.Core.Archive;
 using ClaudePortable.Core.Discovery;
 using ClaudePortable.Core.Manifest;
 using ClaudePortable.Core.Post;
@@ -38,14 +39,17 @@ public sealed class RestoreEngine : IRestoreEngine
     private static readonly Dictionary<string, string[]> MachineLocalCarryOver = new(StringComparer.OrdinalIgnoreCase)
     {
         ["codex/dotcodex"] = ["auth.json", "installation_id", "cap_sid", ".sandbox", ".sandbox-secrets"],
+        ["claude-code/dotclaude"] = [".credentials.json"],
     };
 
     private readonly IPathRewriter _pathRewriter;
+    private readonly IPathDiscovery _pathDiscovery;
     private readonly TimeProvider _clock;
 
-    public RestoreEngine(IPathRewriter pathRewriter, TimeProvider? clock = null)
+    public RestoreEngine(IPathRewriter pathRewriter, TimeProvider? clock = null, IPathDiscovery? pathDiscovery = null)
     {
         _pathRewriter = pathRewriter;
+        _pathDiscovery = pathDiscovery ?? new WindowsPathDiscovery();
         _clock = clock ?? TimeProvider.System;
     }
 
@@ -111,7 +115,7 @@ public sealed class RestoreEngine : IRestoreEngine
 
             var newUserProfile = request.TargetUserProfile
                 ?? Environment.ExpandEnvironmentVariables("%USERPROFILE%");
-            var oldUserProfile = InferSourceUserProfile(manifest) ?? newUserProfile;
+            var oldUserProfile = manifest.UserProfile ?? InferSourceUserProfile(manifest) ?? newUserProfile;
 
             progress?.Report(new OperationProgress("Rewriting paths"));
             _pathRewriter.Rewrite(tempRoot, oldUserProfile, newUserProfile);
@@ -120,7 +124,10 @@ public sealed class RestoreEngine : IRestoreEngine
             var safetyBackups = new List<string>();
             var perTargetReports = new List<RestoreTargetReport>();
 
-            var restorePlan = BuildRestorePlan(manifest, request, oldUserProfile, newUserProfile);
+            var liveSources = request.TargetUserProfile is null
+                ? _pathDiscovery.Discover()
+                : Array.Empty<DiscoveredClaudePath>();
+            var restorePlan = BuildRestorePlan(manifest, request, oldUserProfile, newUserProfile, liveSources);
 
             foreach (var (archivePrefix, targetDir) in restorePlan)
             {
@@ -169,6 +176,20 @@ public sealed class RestoreEngine : IRestoreEngine
                     warnings));
             }
 
+            // Links last: a link in one source often points into another
+            // (~\.claude\skills\x -> ~\.agents\skills\x), whose files must
+            // already be in place for the target-exists check.
+            progress?.Report(new OperationProgress("Recreating links"));
+            for (var i = 0; i < perTargetReports.Count; i++)
+            {
+                var report = perTargetReports[i];
+                var linkWarnings = RecreateLinks(manifest.Links, report.ArchivePrefix, report.TargetFolder, oldUserProfile, newUserProfile);
+                if (linkWarnings.Count > 0)
+                {
+                    perTargetReports[i] = report with { Warnings = [.. report.Warnings, .. linkWarnings] };
+                }
+            }
+
             var checklistDest = Path.Combine(
                 Environment.ExpandEnvironmentVariables("%LOCALAPPDATA%"),
                 "ClaudePortable",
@@ -198,14 +219,24 @@ public sealed class RestoreEngine : IRestoreEngine
         BackupManifest manifest,
         RestoreRequest request,
         string oldUserProfile,
-        string newUserProfile)
+        string newUserProfile,
+        IReadOnlyList<DiscoveredClaudePath> liveSources)
     {
         var plan = new List<(string, string)>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var (archivePrefix, originalPath) in manifest.ArchiveTargets)
         {
-            var target = RewriteAbsolutePathForUser(originalPath, oldUserProfile, newUserProfile);
+            // Prefer where the app actually keeps its data on THIS machine:
+            // Store vs. non-Store install, a different %CODEX_HOME%, or
+            // redirected AppData all change it. Fall back to the backup
+            // machine's path (re-rooted to this profile) when the app has
+            // no data folder here yet.
+            var key = SourceLayout.KeyFor(archivePrefix);
+            var live = key is null
+                ? null
+                : liveSources.FirstOrDefault(s => s.Exists && string.Equals(s.Key, key, StringComparison.OrdinalIgnoreCase));
+            var target = live?.Path ?? RewriteAbsolutePathForUser(originalPath, oldUserProfile, newUserProfile);
             plan.Add((archivePrefix, target));
             seen.Add(archivePrefix);
         }
@@ -274,6 +305,126 @@ public sealed class RestoreEngine : IRestoreEngine
             return Path.GetDirectoryName(dotCodex.TrimEnd('\\', '/'));
         }
         return null;
+    }
+
+    /// <summary>
+    /// Recreate the junctions / directory symlinks recorded at backup time
+    /// under <paramref name="archivePrefix"/>. Absolute targets are re-rooted
+    /// to the restore profile. A link is only created when its target exists
+    /// here; otherwise the user gets a warning naming both ends.
+    /// </summary>
+    internal static List<string> RecreateLinks(
+        IReadOnlyList<BackupLink> links,
+        string archivePrefix,
+        string targetDir,
+        string oldUserProfile,
+        string newUserProfile)
+    {
+        var warnings = new List<string>();
+        var prefix = archivePrefix.TrimEnd('/') + "/";
+        foreach (var link in links)
+        {
+            if (!link.Path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var relative = link.Path[prefix.Length..].Replace('/', Path.DirectorySeparatorChar);
+            var linkPath = Path.Combine(targetDir, relative);
+            var target = Path.IsPathFullyQualified(link.Target)
+                ? RewriteAbsolutePathForUser(link.Target, oldUserProfile, newUserProfile)
+                : link.Target;
+            var resolvedTarget = Path.IsPathFullyQualified(target)
+                ? target
+                : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(linkPath)!, target));
+
+            if (Directory.Exists(linkPath) || File.Exists(linkPath))
+            {
+                continue;
+            }
+            if (!Directory.Exists(resolvedTarget))
+            {
+                warnings.Add($"Link '{linkPath}' -> '{resolvedTarget}' not recreated: the target folder does not exist on this machine. Restore or clone it, then run: mklink /J \"{linkPath}\" \"{resolvedTarget}\"");
+                continue;
+            }
+
+            var error = TryCreateDirectoryLink(linkPath, target, resolvedTarget);
+            if (error is not null)
+            {
+                warnings.Add($"Link '{linkPath}' -> '{resolvedTarget}' could not be recreated: {error}");
+            }
+        }
+        return warnings;
+    }
+
+    /// <summary>
+    /// Junctions need no privileges, so an absolute local target becomes a
+    /// junction (.NET has no junction API, hence mklink). Directory symlinks
+    /// need Developer Mode or admin rights; they are used first only for a
+    /// relative target (to keep it relative), and as the fallback for UNC
+    /// targets, which junctions cannot point at. A relative symlink that
+    /// cannot be created falls back to a junction to the resolved path.
+    /// </summary>
+    private static string? TryCreateDirectoryLink(string linkPath, string rawTarget, string resolvedTarget)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(linkPath)!);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return ex.Message;
+        }
+
+        var junctionPossible = !resolvedTarget.StartsWith(@"\\", StringComparison.Ordinal);
+        if (Path.IsPathFullyQualified(rawTarget))
+        {
+            if (junctionPossible && TryCreateJunction(linkPath, resolvedTarget))
+            {
+                return null;
+            }
+            return TryCreateSymlink(linkPath, rawTarget);
+        }
+
+        var symlinkError = TryCreateSymlink(linkPath, rawTarget);
+        if (symlinkError is null || (junctionPossible && TryCreateJunction(linkPath, resolvedTarget)))
+        {
+            return null;
+        }
+        return symlinkError;
+    }
+
+    private static bool TryCreateJunction(string linkPath, string target)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("cmd.exe", $"/d /c mklink /J \"{linkPath}\" \"{target}\"")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            using var proc = Process.Start(psi);
+            return proc is not null && proc.WaitForExit(10_000) && proc.ExitCode == 0;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static string? TryCreateSymlink(string linkPath, string target)
+    {
+        try
+        {
+            Directory.CreateSymbolicLink(linkPath, target);
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return $"{ex.Message} (directory symlinks need Developer Mode or admin rights)";
+        }
     }
 
     private static bool ArchiveContainsCodex(string zipPath)
@@ -429,6 +580,7 @@ public sealed class RestoreEngine : IRestoreEngine
         CancellationToken cancellationToken)
     {
         using var archive = ZipFile.OpenRead(zipPath);
+        var destinationRoot = Path.GetFullPath(destination);
         var total = archive.Entries.Count;
         for (var i = 0; i < total; i++)
         {
@@ -442,18 +594,34 @@ public sealed class RestoreEngine : IRestoreEngine
             if (string.IsNullOrEmpty(e.Name))
             {
                 // Directory entry.
-                var dirPath = Path.Combine(destination, e.FullName.Replace('/', Path.DirectorySeparatorChar));
-                Directory.CreateDirectory(dirPath);
+                Directory.CreateDirectory(SafeEntryPath(destinationRoot, e.FullName));
                 continue;
             }
 
-            var targetPath = Path.Combine(destination, e.FullName.Replace('/', Path.DirectorySeparatorChar));
+            var targetPath = SafeEntryPath(destinationRoot, e.FullName);
             Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
             await using var src = e.Open();
             await using var dst = File.Create(targetPath);
             await src.CopyToAsync(dst, cancellationToken).ConfigureAwait(false);
         }
         progress?.Report(new OperationProgress("Extracting archive", total, total));
+    }
+
+    /// <summary>
+    /// Resolve a ZIP entry name under the extraction root, refusing entries
+    /// that escape it ("../", absolute or drive-qualified names). Backups can
+    /// come from anywhere (a shared folder, a download), so a crafted archive
+    /// must not be able to write outside the temp folder.
+    /// </summary>
+    internal static string SafeEntryPath(string destinationRoot, string entryName)
+    {
+        var root = destinationRoot.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var full = Path.GetFullPath(Path.Combine(root, entryName.Replace('/', Path.DirectorySeparatorChar)));
+        if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException($"Backup contains an entry outside the archive root: '{entryName}'.");
+        }
+        return full;
     }
 
     private static void TryDeleteDirectory(string path)

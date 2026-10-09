@@ -202,6 +202,7 @@ Ez végleges. Újra létrehozni csak az AgentPortable-ből telepítve vagy az XM
   <data name="Cli_Backup_Bytes" xml:space="preserve"><value>bájtok:     {0}</value></data>
   <data name="Cli_Backup_Sha256" xml:space="preserve"><value>sha256:     {0}</value></data>
   <data name="Cli_Backup_PerSource" xml:space="preserve"><value>  {0}: {1} fájl</value></data>
+  <data name="Cli_Backup_Link" xml:space="preserve"><value>  hivatkozás (nem követve, visszaállításkor újra létrejön): {0} -&gt; {1}</value></data>
   <data name="Cli_Backup_SkippedWarn" xml:space="preserve"><value>figyelmeztetés: kihagyott útvonal (nem található): {0} &lt;- {1}</value></data>
   <data name="Cli_Rotation_Summary" xml:space="preserve"><value>rotáció: előléptetve={0} törölve={1} -&gt; napi={2} heti={3} havi={4}</value></data>
   <data name="Cli_Rotation_Promoted" xml:space="preserve"><value>  előléptetve: {0}</value></data>

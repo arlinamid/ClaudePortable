@@ -284,6 +284,10 @@ public sealed class MainViewModel : ViewModelBase
             {
                 UiLogSink.Instance.Append($"  {key}: {count} files enumerated");
             }
+            foreach (var link in outcome.Manifest.Links)
+            {
+                UiLogSink.Instance.Append($"  link (not followed, recreated on restore): {link.Path} -> {link.Target}");
+            }
             foreach (var skipped in outcome.SkippedPaths)
             {
                 UiLogSink.Instance.Append($"  skipped (not present on this machine): {skipped.Key} <- {skipped.Path}");

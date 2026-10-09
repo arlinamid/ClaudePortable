@@ -33,6 +33,9 @@ public class ExclusionGlobTests
     [InlineData("claude-desktop/appdata/IndexedDB/foo-wal", true)]
     [InlineData("claude-desktop/appdata/not-a-wal-but-walrus.json", false)]
     [InlineData("claude-desktop/appdata/IndexedDB/foo.sqlite-shm", true)]
+    [InlineData("claude-code/dotclaude/.credentials.json", true)]
+    [InlineData("agents/dotagents/skills/find-skills/SKILL.md", false)]
+    [InlineData("agents/dotagents/.skill-lock.json", false)]
     // Codex state root: credentials, machine-bound sandbox state,
     // binaries, logs and caches are dropped; user config + history kept.
     [InlineData("codex/dotcodex/auth.json", true)]

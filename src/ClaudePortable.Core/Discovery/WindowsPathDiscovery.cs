@@ -7,7 +7,8 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
     // Each known Claude artefact has a list of candidate paths. We use the
     // FIRST one that looks accessible at discovery time. This matters for
     // the Store-installed Claude Desktop where %APPDATA%\Claude is a
-    // reparse point into %LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\...
+    // reparse point into %LOCALAPPDATA%\Packages\Claude_<publisherId>\...
+    // (matched by wildcard, so a different publisher id still resolves).
     // Some process contexts (e.g. a portable exe flagged with
     // Mark-of-the-Web after being downloaded / synced through OneDrive)
     // fail Directory.Exists on the reparse point even though the target
@@ -20,7 +21,7 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
             new[]
             {
                 @"%APPDATA%\Claude",
-                @"%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude",
+                @"%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude",
             },
             "Spec 1.1 + Store-app reparse fallback"
         ),
@@ -46,7 +47,7 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
             new[]
             {
                 @"%LOCALAPPDATA%\Claude",
-                @"%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Local\Claude",
+                @"%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Local\Claude",
             },
             "Spec 1.1 + Store-app reparse fallback"
         ),
@@ -77,6 +78,16 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
                 @"%LOCALAPPDATA%\Packages\OpenAI.Codex_*\LocalCache\Roaming\Codex",
             },
             "Codex desktop Store-app, verified 2026-10-09"
+        ),
+        // Cross-agent skill store. `npx skills add` installs skills here and
+        // links them into each agent's own folder (~\.claude\skills\<name>
+        // -> ~\.agents\skills\<name>), and Codex reads ~\.agents\skills as
+        // its user-level skills folder. Links are not followed during backup,
+        // so without this source those skills would be lost on a new machine.
+        (
+            "agentsUserProfile",
+            new[] { @"%USERPROFILE%\.agents" },
+            "Shared agent skills store (npx skills, Codex user skills)"
         ),
     ];
 
@@ -110,7 +121,7 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
     /// candidate references an unset environment variable, so optional
     /// overrides like %CODEX_HOME% are skipped instead of reported literally.
     /// </summary>
-    private static string? ExpandCandidate(string candidate)
+    internal static string? ExpandCandidate(string candidate)
     {
         var expanded = Environment.ExpandEnvironmentVariables(candidate);
         if (expanded.Contains('%', StringComparison.Ordinal))
