@@ -46,7 +46,7 @@ jobs:
         run: dotnet restore ClaudePortable.slnx
 
       - name: Test
-        run: dotnet test --configuration Release
+        run: dotnet test tests/ClaudePortable.Tests/ClaudePortable.Tests.csproj --configuration Release --logger "console;verbosity=minimal"
 
       # --- MSI artifact ---
       - name: Publish App (multi-file, for MSI)
@@ -57,6 +57,8 @@ jobs:
             --self-contained true `
             -p:PublishSingleFile=false `
             -p:InvariantGlobalization=false `
+            -p:AssemblyVersion=${{ steps.ver.outputs.version }}.0 `
+            -p:FileVersion=${{ steps.ver.outputs.version }}.0 `
             -p:InformationalVersion=${{ steps.ver.outputs.version }} `
             --output src/ClaudePortable.Installer/staging
 
@@ -98,6 +100,12 @@ jobs:
           Write-Output "sha=$dst.sha256" >> $env:GITHUB_OUTPUT
           Write-Host "SHA256: $h"
 
+          $msi = "src/ClaudePortable.Installer/bin/Release/AgentPortable-$ver.msi"
+          $mh = (Get-FileHash $msi -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$mh  AgentPortable-$ver.msi" | Out-File "$msi.sha256" -Encoding ascii
+          Write-Output "msisha=$msi.sha256" >> $env:GITHUB_OUTPUT
+          Write-Host "MSI SHA256: $mh"
+
       # --- Upload ---
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
@@ -121,6 +129,7 @@ jobs:
         with:
           files: |
             src/ClaudePortable.Installer/bin/Release/AgentPortable-${{ steps.ver.outputs.version }}.msi
+            ${{ steps.hash.outputs.msisha }}
             ${{ steps.hash.outputs.exe }}
             ${{ steps.hash.outputs.sha }}
           generate_release_notes: true
@@ -129,7 +138,7 @@ jobs:
 
             - `AgentPortable-${{ steps.ver.outputs.version }}-portable.exe` - single-file, no install required. Double-click to run.
             - `AgentPortable-${{ steps.ver.outputs.version }}.msi` - per-machine installer with Start-menu shortcut.
-            - `AgentPortable-${{ steps.ver.outputs.version }}-portable.exe.sha256` - checksum for portable exe.
+            - `AgentPortable-${{ steps.ver.outputs.version }}-portable.exe.sha256` / `AgentPortable-${{ steps.ver.outputs.version }}.msi.sha256` - checksums.
 
             ## First-run warning (unsigned)
 
