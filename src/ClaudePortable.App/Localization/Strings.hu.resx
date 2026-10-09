@@ -27,13 +27,13 @@
   <data name="Sidebar_BackupNow" xml:space="preserve"><value>Mentés most</value></data>
 
   <!-- Status page -->
-  <data name="Status_Caption" xml:space="preserve"><value>Áttekintés a Claude biztonsági mentésekről az összes beállított mappában.</value></data>
+  <data name="Status_Caption" xml:space="preserve"><value>Áttekintés a Claude és Codex biztonsági mentésekről az összes beállított mappában.</value></data>
   <data name="Status_CardBackups" xml:space="preserve"><value>MENTÉSEK</value></data>
   <data name="Status_CardBackupsSub" xml:space="preserve"><value>az összes célmappában</value></data>
   <data name="Status_CardTargets" xml:space="preserve"><value>CÉLMAPPÁK</value></data>
   <data name="Status_CardTargetsSub" xml:space="preserve"><value>beállított mappa</value></data>
   <data name="Status_CardDiscovered" xml:space="preserve"><value>FELDERÍTVE</value></data>
-  <data name="Status_CardDiscoveredSub" xml:space="preserve"><value>megtalált Claude útvonal</value></data>
+  <data name="Status_CardDiscoveredSub" xml:space="preserve"><value>megtalált ügynök-útvonal</value></data>
   <data name="Status_RecentBackups" xml:space="preserve"><value>Legutóbbi mentések</value></data>
 
   <!-- Grid headers -->
@@ -55,7 +55,7 @@
   <data name="Grid_Action" xml:space="preserve"><value>MŰVELET</value></data>
 
   <!-- Targets page -->
-  <data name="Targets_Caption" xml:space="preserve"><value>Mappák, ahová a ClaudePortable a mentési ZIP-eket írja. A feltöltést bízd a OneDrive-ra, Google Drive-ra, Dropboxra vagy a saját szinkronizáló kliensedre.</value></data>
+  <data name="Targets_Caption" xml:space="preserve"><value>Mappák, ahová az AgentPortable a mentési ZIP-eket írja. A feltöltést bízd a OneDrive-ra, Google Drive-ra, Dropboxra vagy a saját szinkronizáló kliensedre.</value></data>
   <data name="Targets_AddFolder" xml:space="preserve"><value>Mappa hozzáadása</value></data>
   <data name="Targets_SetActive" xml:space="preserve"><value>Beállítás aktívként</value></data>
   <data name="Targets_SetActiveTooltip" xml:space="preserve"><value>A kijelölt mappa legyen a „Mentés most” célmappája.</value></data>
@@ -63,18 +63,18 @@
   <data name="Targets_ActiveLabel" xml:space="preserve"><value>Aktív célmappa:</value></data>
 
   <!-- Discovery page -->
-  <data name="Discovery_Caption" xml:space="preserve"><value>Amit a ClaudePortable ezen a gépen talált. A LÉTEZIK oszlop csak állapotjelző, nem kapcsoló – a nem létező útvonalak kimaradnak a mentésből. A Cowork nem szerepel külön sorként: a munkamenet-állapot az AppData\Roaming\Claude\local-agent-mode-sessions alatt van (ezt a Claude Desktop AppData sor már lefedi), a Coworkban megnyitott projektmappákat pedig a program automatikusan felderíti és külön menti.</value></data>
-  <data name="Discovery_ClaudePaths" xml:space="preserve"><value>Claude útvonalak</value></data>
+  <data name="Discovery_Caption" xml:space="preserve"><value>Amit az AgentPortable ezen a gépen talált (Claude Desktop, Claude Code, Codex CLI és a Codex alkalmazás). A LÉTEZIK oszlop csak állapotjelző, nem kapcsoló – a nem létező útvonalak kimaradnak a mentésből. A Cowork nem szerepel külön sorként: a munkamenet-állapot az AppData\Roaming\Claude\local-agent-mode-sessions alatt van (ezt a Claude Desktop AppData sor már lefedi), a Coworkban megnyitott projektmappákat pedig a program automatikusan felderíti és külön menti. A Codex bejelentkezési tokenjei (auth.json) soha nem kerülnek a mentésbe.</value></data>
+  <data name="Discovery_ClaudePaths" xml:space="preserve"><value>Ügynök-útvonalak</value></data>
   <data name="Discovery_SyncClients" xml:space="preserve"><value>Szinkronizáló kliensek</value></data>
 
   <!-- Restore page -->
-  <data name="Restore_Caption" xml:space="preserve"><value>Válassz egy pillanatképet egy beállított célmappából, vagy tallózz be bármilyen claude-backup_*.zip fájlt a lemezről (praktikus, ha másik gépre költöztél). A ClaudePortable a visszaállítás előtt a jelenlegi Claude adatokat félreteszi a &lt;mappa&gt;_backup_&lt;időbélyeg&gt; helyre — semmi nem törlődik.</value></data>
+  <data name="Restore_Caption" xml:space="preserve"><value>Válassz egy pillanatképet egy beállított célmappából, vagy tallózz be bármilyen claude-backup_*.zip fájlt a lemezről (praktikus, ha másik gépre költöztél). Az AgentPortable a visszaállítás előtt a jelenlegi Claude és Codex adatokat félreteszi a &lt;mappa&gt;_backup_&lt;időbélyeg&gt; helyre — semmi nem törlődik.</value></data>
   <data name="Restore_AvailableSnapshots" xml:space="preserve"><value>Elérhető pillanatképek</value></data>
   <data name="Restore_RestoreSelected" xml:space="preserve"><value>Kijelölt pillanatkép visszaállítása</value></data>
   <data name="Restore_RestoreFromFile" xml:space="preserve"><value>Visszaállítás fájlból...</value></data>
   <data name="Restore_OpenChecklist" xml:space="preserve"><value>Ellenőrzőlista megnyitása</value></data>
   <data name="Restore_AdvancedOptions" xml:space="preserve"><value>Speciális beállítások</value></data>
-  <data name="Restore_AdvancedCaption" xml:space="preserve"><value>Felülbírálja, hová írja a visszaállítás a fájlokat. Akkor használd, ha a mentés másik Windows felhasználónév alatt készült (pl. sascha a munkaállomáson, sasch a laptopon). Minden al-útvonal (AppData\Roaming, AppData\Local, .claude, .cowork) ebből a gyökérből származik. Hagyd üresen a %USERPROFILE% használatához.</value></data>
+  <data name="Restore_AdvancedCaption" xml:space="preserve"><value>Felülbírálja, hová írja a visszaállítás a fájlokat. Akkor használd, ha a mentés másik Windows felhasználónév alatt készült (pl. sascha a munkaállomáson, sasch a laptopon). Minden al-útvonal (AppData\Roaming, AppData\Local, .claude, .codex, .cowork) ebből a gyökérből származik. Hagyd üresen a %USERPROFILE% használatához.</value></data>
   <data name="Restore_TargetUserProfile" xml:space="preserve"><value>Cél felhasználói profil</value></data>
   <data name="Restore_IgnoreVersionMismatch" xml:space="preserve"><value>Claude Desktop verzióeltérés figyelmen kívül hagyása</value></data>
   <data name="Restore_IgnoreVersionMismatchHint" xml:space="preserve"><value>(a főverzió-blokkolás kihagyása; a csevegési előzmények sémája eltérhet)</value></data>
@@ -83,8 +83,8 @@
   <data name="Logs_Caption" xml:space="preserve"><value>A munkamenet legutóbbi 500 sora. A napló csak a memóriában él — újraindításkor törlődik.</value></data>
 
   <!-- Schedule page -->
-  <data name="Schedule_Caption" xml:space="preserve"><value>Az erről a gépről látható ütemezett Windows-feladatok. A ClaudePortable által kezelt bejegyzések zölddel, a Claude vagy Cowork útvonalakat érintő idegen feladatok (pl. egy kézzel írt mentő PowerShell-szkript) narancssárgával jelennek meg. Ha máshol hoztál létre vagy töröltél feladatot, nyomd meg a Frissítés gombot.</value></data>
-  <data name="Schedule_FilterRelevant" xml:space="preserve"><value>Claude-vonatkozású</value></data>
+  <data name="Schedule_Caption" xml:space="preserve"><value>Az erről a gépről látható ütemezett Windows-feladatok. Az AgentPortable által kezelt bejegyzések zölddel, a Claude, Cowork vagy Codex útvonalakat érintő idegen feladatok (pl. egy kézzel írt mentő PowerShell-szkript) narancssárgával jelennek meg. Ha máshol hoztál létre vagy töröltél feladatot, nyomd meg a Frissítés gombot.</value></data>
+  <data name="Schedule_FilterRelevant" xml:space="preserve"><value>Ügynök-vonatkozású</value></data>
   <data name="Schedule_FilterManaged" xml:space="preserve"><value>Csak kezelt</value></data>
   <data name="Schedule_FilterAll" xml:space="preserve"><value>Minden feladat</value></data>
   <data name="Schedule_AutoBackupTitle" xml:space="preserve"><value>Automatikus mentés</value></data>
@@ -107,7 +107,7 @@
   <data name="Schedule_RowActions" xml:space="preserve"><value>Feladatműveletek</value></data>
 
   <!-- Tray icon -->
-  <data name="Tray_Open" xml:space="preserve"><value>ClaudePortable megnyitása</value></data>
+  <data name="Tray_Open" xml:space="preserve"><value>AgentPortable megnyitása</value></data>
   <data name="Tray_Quit" xml:space="preserve"><value>Kilépés</value></data>
 
   <!-- Main view model statuses -->
@@ -137,8 +137,8 @@
   <!-- Dialogs -->
   <data name="Dlg_PickProfileTitle" xml:space="preserve"><value>Válaszd ki a cél felhasználói profil mappáját (C:\Users\&lt;név&gt;)</value></data>
   <data name="Dlg_AddTargetTitle" xml:space="preserve"><value>Válassz mappát, ahová a mentések kerüljenek</value></data>
-  <data name="Dlg_PickZipTitle" xml:space="preserve"><value>Válassz egy ClaudePortable mentési ZIP-et</value></data>
-  <data name="Dlg_ZipFilter" xml:space="preserve"><value>ClaudePortable mentések (*.zip)|claude-backup_*.zip|Minden ZIP fájl (*.zip)|*.zip</value></data>
+  <data name="Dlg_PickZipTitle" xml:space="preserve"><value>Válassz egy AgentPortable mentési ZIP-et</value></data>
+  <data name="Dlg_ZipFilter" xml:space="preserve"><value>AgentPortable mentések (*.zip)|claude-backup_*.zip|Minden ZIP fájl (*.zip)|*.zip</value></data>
   <data name="Dlg_CloudOnlyText" xml:space="preserve"><value>A(z) „{0}” jelenleg csak a felhőben van (helyőrző). A visszaállítás letöltést indít, ami a mentés méretétől függően több percig is tarthat.
 
 Folytatod?</value></data>
@@ -158,7 +158,7 @@ Bezárjam most a Claude Desktopot? (Igen = zárd be helyettem, Nem = visszaáll�
   <!-- Scheduled tasks view model -->
   <data name="Sched_ClickRefresh" xml:space="preserve"><value>Kattints a Frissítés gombra az ütemezett feladatok betöltéséhez.</value></data>
   <data name="Sched_Loading" xml:space="preserve"><value>Ütemezett feladatok betöltése...</value></data>
-  <data name="Sched_StatusLine" xml:space="preserve"><value>Összesen {0} feladat · {1} ClaudePortable által kezelt · {2} Claude-vonatkozású</value></data>
+  <data name="Sched_StatusLine" xml:space="preserve"><value>Összesen {0} feladat · {1} AgentPortable által kezelt · {2} ügynök-vonatkozású</value></data>
   <data name="Sched_EnumFailed" xml:space="preserve"><value>A feladatok listázása nem sikerült: {0}</value></data>
   <data name="Sched_DisableConfirmText" xml:space="preserve"><value>Letiltod a(z) „{0}” ütemezett feladatot?
 
@@ -166,27 +166,27 @@ A feladat többé nem indul el, de később újra engedélyezhető. Semmi nem t�
   <data name="Sched_DisableConfirmTitle" xml:space="preserve"><value>Feladat letiltása</value></data>
   <data name="Sched_DeleteConfirmText" xml:space="preserve"><value>Törlöd a(z) „{0}” ütemezett feladatot?
 
-Ez végleges. Újra létrehozni csak a ClaudePortable-ből telepítve vagy az XML kézi újraírásával lehet.</value></data>
+Ez végleges. Újra létrehozni csak az AgentPortable-ből telepítve vagy az XML kézi újraírásával lehet.</value></data>
   <data name="Sched_DeleteConfirmTitle" xml:space="preserve"><value>Feladat törlése</value></data>
   <data name="Sched_XmlError" xml:space="preserve"><value>Nem sikerült beolvasni a(z) „{0}” XML-jét (kilépési kód: {1}).</value></data>
   <data name="Sched_XmlTitle" xml:space="preserve"><value>XML megtekintése</value></data>
   <data name="Sched_XmlDialogTitle" xml:space="preserve"><value>XML: {0}</value></data>
   <data name="Sched_XmlTruncated" xml:space="preserve"><value>
 ...(csonkolva, a teljes XML a vágólapra másolva)</value></data>
-  <data name="Sched_ManagedByClaudePortable" xml:space="preserve"><value>ClaudePortable</value></data>
-  <data name="Sched_ManagedByRelevant" xml:space="preserve"><value>Claude-vonatkozású</value></data>
+  <data name="Sched_ManagedByClaudePortable" xml:space="preserve"><value>AgentPortable</value></data>
+  <data name="Sched_ManagedByRelevant" xml:space="preserve"><value>Ügynök-vonatkozású</value></data>
   <data name="Sched_ManagedByOther" xml:space="preserve"><value>Egyéb</value></data>
   <data name="Sched_LastRunExit" xml:space="preserve"><value>{0} (kilépési kód: {1})</value></data>
 
   <!-- CLI: root -->
-  <data name="Cli_RootDesc" xml:space="preserve"><value>ClaudePortable – Claude Desktop / Claude Code állapot mentése és visszaállítása.</value></data>
+  <data name="Cli_RootDesc" xml:space="preserve"><value>AgentPortable – Claude Desktop, Claude Code és Codex állapot mentése és visszaállítása.</value></data>
   <data name="Cli_Lang" xml:space="preserve"><value>A futtatás nyelve: en vagy hu. Alapértelmezés: a GUI-ban mentett nyelv, különben a Windows megjelenítési nyelve.</value></data>
   <data name="Cli_Found" xml:space="preserve"><value>VAN</value></data>
   <data name="Cli_Miss" xml:space="preserve"><value>NINCS</value></data>
   <data name="Cli_Ok" xml:space="preserve"><value>OK</value></data>
 
   <!-- CLI: backup -->
-  <data name="Cli_Backup_Desc" xml:space="preserve"><value>Mentési ZIP készítése a helyi Claude adatokból.</value></data>
+  <data name="Cli_Backup_Desc" xml:space="preserve"><value>Mentési ZIP készítése a helyi Claude és Codex adatokból.</value></data>
   <data name="Cli_Backup_To" xml:space="preserve"><value>A mentési ZIP célmappája.</value></data>
   <data name="Cli_Backup_Tier" xml:space="preserve"><value>A mentéshez rendelt megőrzési szint.</value></data>
   <data name="Cli_Backup_DryRun" xml:space="preserve"><value>A mentés megtervezése adatok írása nélkül.</value></data>
@@ -209,12 +209,12 @@ Ez végleges. Újra létrehozni csak a ClaudePortable-ből telepítve vagy az XM
   <data name="Cli_Rotation_Failed" xml:space="preserve"><value>figyelmeztetés: a rotáció nem sikerült: {0}</value></data>
 
   <!-- CLI: restore -->
-  <data name="Cli_Restore_Desc" xml:space="preserve"><value>Claude adatok visszaállítása mentési ZIP-ből.</value></data>
+  <data name="Cli_Restore_Desc" xml:space="preserve"><value>Claude és Codex adatok visszaállítása mentési ZIP-ből.</value></data>
   <data name="Cli_Restore_From" xml:space="preserve"><value>A visszaállítás forrásául szolgáló mentési ZIP.</value></data>
-  <data name="Cli_Restore_Yes" xml:space="preserve"><value>Megerősítés: a meglévő Claude adatok félre lesznek téve.</value></data>
+  <data name="Cli_Restore_Yes" xml:space="preserve"><value>Megerősítés: a meglévő Claude és Codex adatok félre lesznek téve.</value></data>
   <data name="Cli_Restore_TargetUser" xml:space="preserve"><value>A cél Windows felhasználói profil útvonalának felülbírálása (haladó).</value></data>
   <data name="Cli_Restore_IgnoreVersion" xml:space="preserve"><value>Folytatás akkor is, ha a mentés claudeDesktopVersion értéke főverzióval marad el a telepített Claude Desktoptól.</value></data>
-  <data name="Cli_Restore_NeedYes" xml:space="preserve"><value>hiba: a visszaállításhoz --yes szükséges. A meglévő Claude adatok a &lt;mappa&gt;_backup_&lt;időbélyeg&gt; helyre kerülnek.</value></data>
+  <data name="Cli_Restore_NeedYes" xml:space="preserve"><value>hiba: a visszaállításhoz --yes szükséges. A meglévő Claude és Codex adatok a &lt;mappa&gt;_backup_&lt;időbélyeg&gt; helyre kerülnek.</value></data>
   <data name="Cli_Restore_Complete" xml:space="preserve"><value>a visszaállítás elkészült.</value></data>
   <data name="Cli_Restore_ManifestSchema" xml:space="preserve"><value>manifest séma:        {0}</value></data>
   <data name="Cli_Restore_CreatedAt" xml:space="preserve"><value>mentés létrehozva:    {0}</value></data>
@@ -236,8 +236,8 @@ Ez végleges. Újra létrehozni csak a ClaudePortable-ből telepítve vagy az XM
   <data name="Cli_List_HdrFile" xml:space="preserve"><value>fájl</value></data>
 
   <!-- CLI: discover -->
-  <data name="Cli_Discover_Desc" xml:space="preserve"><value>Felderített Claude útvonalak és szinkronizáló kliensek kilistázása.</value></data>
-  <data name="Cli_Discover_ClaudePaths" xml:space="preserve"><value>== Claude útvonalak ==</value></data>
+  <data name="Cli_Discover_Desc" xml:space="preserve"><value>Felderített Claude / Codex útvonalak és szinkronizáló kliensek kilistázása.</value></data>
+  <data name="Cli_Discover_ClaudePaths" xml:space="preserve"><value>== Ügynök-útvonalak ==</value></data>
   <data name="Cli_Discover_SyncClients" xml:space="preserve"><value>== Szinkronizáló kliensek ==</value></data>
   <data name="Cli_Discover_None" xml:space="preserve"><value>  (nem található)</value></data>
   <data name="Cli_Discover_Source" xml:space="preserve"><value>           forrás: {0}</value></data>
@@ -249,7 +249,7 @@ Ez végleges. Újra létrehozni csak a ClaudePortable-ből telepítve vagy az XM
   <data name="Cli_Schedule_Name" xml:space="preserve"><value>A Feladatütemező-feladat neve.</value></data>
   <data name="Cli_Schedule_NoInstall" xml:space="preserve"><value>Csak az XML kiírása; a schtasks.exe nem fut le.</value></data>
   <data name="Cli_Schedule_NameArg" xml:space="preserve"><value>Teljes feladatnév (pl. \ClaudePortable-Daily).</value></data>
-  <data name="Cli_Schedule_TaskDescription" xml:space="preserve"><value>ClaudePortable napi mentés ide: {0}</value></data>
+  <data name="Cli_Schedule_TaskDescription" xml:space="preserve"><value>AgentPortable napi mentés ide: {0}</value></data>
   <data name="Cli_Schedule_Install_Desc" xml:space="preserve"><value>Az ütemezett feladat létrehozása vagy cseréje.</value></data>
   <data name="Cli_Schedule_ErrParseAt" xml:space="preserve"><value>hiba: az --at „{0}” értéke nem értelmezhető. Elvárt formátum: HH:mm.</value></data>
   <data name="Cli_Schedule_Wrote" xml:space="preserve"><value>kiírva: {0}</value></data>
@@ -261,10 +261,10 @@ Ez végleges. Újra létrehozni csak a ClaudePortable-ből telepítve vagy az XM
   <data name="Cli_Schedule_ErrDelete" xml:space="preserve"><value>hiba: a schtasks.exe /Delete {0} kóddal lépett ki.</value></data>
   <data name="Cli_Schedule_Deleted" xml:space="preserve"><value>a(z) „{0}” ütemezett feladat törölve.</value></data>
   <data name="Cli_Schedule_Emit_Desc" xml:space="preserve"><value>A Feladatütemező XML kiírása a stdout-ra telepítés nélkül.</value></data>
-  <data name="Cli_Schedule_List_Desc" xml:space="preserve"><value>Ütemezett Windows-feladatok listázása Claude-vonatkozás jelöléssel.</value></data>
-  <data name="Cli_Schedule_List_All" xml:space="preserve"><value>A Claude-hoz nem kapcsolódó idegen feladatok is (alapértelmezés: rejtve).</value></data>
-  <data name="Cli_Schedule_List_Managed" xml:space="preserve"><value>Csak a ClaudePortable által kezelt feladatok.</value></data>
-  <data name="Cli_Schedule_List_Relevant" xml:space="preserve"><value>Csak a ClaudePortable + Claude-vonatkozású feladatok (alapértelmezés).</value></data>
+  <data name="Cli_Schedule_List_Desc" xml:space="preserve"><value>Ütemezett Windows-feladatok listázása Claude / Codex vonatkozás jelöléssel.</value></data>
+  <data name="Cli_Schedule_List_All" xml:space="preserve"><value>A Claude-hoz és Codexhez nem kapcsolódó idegen feladatok is (alapértelmezés: rejtve).</value></data>
+  <data name="Cli_Schedule_List_Managed" xml:space="preserve"><value>Csak az AgentPortable által kezelt feladatok.</value></data>
+  <data name="Cli_Schedule_List_Relevant" xml:space="preserve"><value>Csak az AgentPortable által kezelt + ügynök-vonatkozású feladatok (alapértelmezés).</value></data>
   <data name="Cli_Schedule_List_Json" xml:space="preserve"><value>JSON kimenet igazított táblázat helyett.</value></data>
   <data name="Cli_Schedule_List_Empty" xml:space="preserve"><value>(nincs a szűrőnek megfelelő feladat)</value></data>
   <data name="Cli_Hdr_ManagedBy" xml:space="preserve"><value>KEZELŐ</value></data>

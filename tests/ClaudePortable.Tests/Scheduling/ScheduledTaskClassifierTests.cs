@@ -9,6 +9,7 @@ public class ScheduledTaskClassifierTests
     [InlineData("ClaudePortable", "anyone", "", "", ManagedBy.ClaudePortable)]
     [InlineData("ClaudePortable-Weekly", "x", "", "", ManagedBy.ClaudePortable)]
     [InlineData("SomeTask", "ClaudePortable installer", "", "", ManagedBy.ClaudePortable)]
+    [InlineData("AgentPortable-Daily", "x", "", "", ManagedBy.ClaudePortable)]
     public void Classify_RecognisesClaudePortableManagedTasks(
         string name, string author, string exe, string args, ManagedBy expected)
     {

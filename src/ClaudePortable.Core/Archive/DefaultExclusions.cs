@@ -47,6 +47,7 @@ public static class DefaultExclusions
         "codex/dotcodex/.sandbox-bin/**",
         "codex/dotcodex/.sandbox-secrets/**",
         "codex/dotcodex/packages/**",
+        "codex/dotcodex/plugins/.plugin-appserver/**",
         "codex/dotcodex/app-server-daemon/**",
         "codex/dotcodex/shell_snapshots/**",
         "codex/dotcodex/.tmp/**",

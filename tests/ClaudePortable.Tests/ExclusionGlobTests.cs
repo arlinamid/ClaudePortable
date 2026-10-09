@@ -42,6 +42,7 @@ public class ExclusionGlobTests
     [InlineData("codex/dotcodex/.sandbox-bin/codex.exe", true)]
     [InlineData("codex/dotcodex/packages/standalone/codex.exe", true)]
     [InlineData("codex/dotcodex/plugins/cache/foo/plugin.json", true)]
+    [InlineData("codex/dotcodex/plugins/.plugin-appserver/codex.exe", true)]
     [InlineData("codex/dotcodex/logs_2.sqlite", true)]
     [InlineData("codex/dotcodex/sqlite/logs_2.sqlite-wal", true)]
     [InlineData("codex/dotcodex/log/codex-tui.log", true)]

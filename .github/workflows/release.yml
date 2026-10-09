@@ -90,7 +90,7 @@ jobs:
         run: |
           $ver = "${{ steps.ver.outputs.version }}"
           $src = "dist/portable/claudeportable.exe"
-          $dst = "ClaudePortable-$ver-portable.exe"
+          $dst = "AgentPortable-$ver-portable.exe"
           Copy-Item $src $dst -Force
           $h = (Get-FileHash $dst -Algorithm SHA256).Hash.ToLowerInvariant()
           "$h  $dst" | Out-File "$dst.sha256" -Encoding ascii
@@ -102,14 +102,14 @@ jobs:
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ClaudePortable-${{ steps.ver.outputs.version }}-msi
-          path: src/ClaudePortable.Installer/bin/Release/ClaudePortable-${{ steps.ver.outputs.version }}.msi
+          name: AgentPortable-${{ steps.ver.outputs.version }}-msi
+          path: src/ClaudePortable.Installer/bin/Release/AgentPortable-${{ steps.ver.outputs.version }}.msi
           if-no-files-found: error
 
       - name: Upload portable exe artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ClaudePortable-${{ steps.ver.outputs.version }}-portable
+          name: AgentPortable-${{ steps.ver.outputs.version }}-portable
           path: |
             ${{ steps.hash.outputs.exe }}
             ${{ steps.hash.outputs.sha }}
@@ -120,16 +120,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            src/ClaudePortable.Installer/bin/Release/ClaudePortable-${{ steps.ver.outputs.version }}.msi
+            src/ClaudePortable.Installer/bin/Release/AgentPortable-${{ steps.ver.outputs.version }}.msi
             ${{ steps.hash.outputs.exe }}
             ${{ steps.hash.outputs.sha }}
           generate_release_notes: true
           body: |
             ## Downloads
 
-            - `ClaudePortable-${{ steps.ver.outputs.version }}-portable.exe` - single-file, no install required. Double-click to run.
-            - `ClaudePortable-${{ steps.ver.outputs.version }}.msi` - per-machine installer with Start-menu shortcut.
-            - `ClaudePortable-${{ steps.ver.outputs.version }}-portable.exe.sha256` - checksum for portable exe.
+            - `AgentPortable-${{ steps.ver.outputs.version }}-portable.exe` - single-file, no install required. Double-click to run.
+            - `AgentPortable-${{ steps.ver.outputs.version }}.msi` - per-machine installer with Start-menu shortcut.
+            - `AgentPortable-${{ steps.ver.outputs.version }}-portable.exe.sha256` - checksum for portable exe.
 
             ## First-run warning (unsigned)
 
@@ -141,6 +141,6 @@ jobs:
 
             **Or verify the SHA256 first:**
             ```powershell
-            (Get-FileHash .\ClaudePortable-${{ steps.ver.outputs.version }}-portable.exe -Algorithm SHA256).Hash
+            (Get-FileHash .\AgentPortable-${{ steps.ver.outputs.version }}-portable.exe -Algorithm SHA256).Hash
             ```
             Match against the `.sha256` file. Then unblock + run.

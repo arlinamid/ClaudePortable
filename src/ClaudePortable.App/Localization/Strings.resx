@@ -27,13 +27,13 @@
   <data name="Sidebar_BackupNow" xml:space="preserve"><value>Backup now</value></data>
 
   <!-- Status page -->
-  <data name="Status_Caption" xml:space="preserve"><value>A snapshot of your Claude backups across all configured folders.</value></data>
+  <data name="Status_Caption" xml:space="preserve"><value>A snapshot of your Claude and Codex backups across all configured folders.</value></data>
   <data name="Status_CardBackups" xml:space="preserve"><value>BACKUPS</value></data>
   <data name="Status_CardBackupsSub" xml:space="preserve"><value>across all targets</value></data>
   <data name="Status_CardTargets" xml:space="preserve"><value>TARGETS</value></data>
   <data name="Status_CardTargetsSub" xml:space="preserve"><value>folders configured</value></data>
   <data name="Status_CardDiscovered" xml:space="preserve"><value>DISCOVERED</value></data>
-  <data name="Status_CardDiscoveredSub" xml:space="preserve"><value>Claude paths found</value></data>
+  <data name="Status_CardDiscoveredSub" xml:space="preserve"><value>Agent paths found</value></data>
   <data name="Status_RecentBackups" xml:space="preserve"><value>Recent backups</value></data>
 
   <!-- Grid headers -->
@@ -55,7 +55,7 @@
   <data name="Grid_Action" xml:space="preserve"><value>ACTION</value></data>
 
   <!-- Targets page -->
-  <data name="Targets_Caption" xml:space="preserve"><value>Folders where ClaudePortable writes backup ZIPs. Let OneDrive, Google Drive, Dropbox, or your own sync client handle the upload.</value></data>
+  <data name="Targets_Caption" xml:space="preserve"><value>Folders where AgentPortable writes backup ZIPs. Let OneDrive, Google Drive, Dropbox, or your own sync client handle the upload.</value></data>
   <data name="Targets_AddFolder" xml:space="preserve"><value>Add folder</value></data>
   <data name="Targets_SetActive" xml:space="preserve"><value>Set as active</value></data>
   <data name="Targets_SetActiveTooltip" xml:space="preserve"><value>Make the selected folder the backup destination for 'Backup now'.</value></data>
@@ -63,18 +63,18 @@
   <data name="Targets_ActiveLabel" xml:space="preserve"><value>Active target:</value></data>
 
   <!-- Discovery page -->
-  <data name="Discovery_Caption" xml:space="preserve"><value>What ClaudePortable found on this machine. The EXISTS column is a read-only status indicator, not a toggle - paths that do not exist are skipped during backup. Cowork is not listed as its own row: session state lives under AppData\Roaming\Claude\local-agent-mode-sessions (already covered by the Claude Desktop AppData row), and the project folders you opened in Cowork are auto-discovered and backed up separately.</value></data>
-  <data name="Discovery_ClaudePaths" xml:space="preserve"><value>Claude paths</value></data>
+  <data name="Discovery_Caption" xml:space="preserve"><value>What AgentPortable found on this machine (Claude Desktop, Claude Code, Codex CLI and the Codex app). The EXISTS column is a read-only status indicator, not a toggle - paths that do not exist are skipped during backup. Cowork is not listed as its own row: session state lives under AppData\Roaming\Claude\local-agent-mode-sessions (already covered by the Claude Desktop AppData row), and the project folders you opened in Cowork are auto-discovered and backed up separately. Codex login tokens (auth.json) are never backed up.</value></data>
+  <data name="Discovery_ClaudePaths" xml:space="preserve"><value>Agent paths</value></data>
   <data name="Discovery_SyncClients" xml:space="preserve"><value>Sync clients</value></data>
 
   <!-- Restore page -->
-  <data name="Restore_Caption" xml:space="preserve"><value>Select a snapshot from a configured target or browse to any claude-backup_*.zip on disk (handy when you moved to another machine). ClaudePortable moves the current Claude data aside to &lt;folder&gt;_backup_&lt;timestamp&gt; before restoring — nothing is deleted.</value></data>
+  <data name="Restore_Caption" xml:space="preserve"><value>Select a snapshot from a configured target or browse to any claude-backup_*.zip on disk (handy when you moved to another machine). AgentPortable moves the current Claude and Codex data aside to &lt;folder&gt;_backup_&lt;timestamp&gt; before restoring — nothing is deleted.</value></data>
   <data name="Restore_AvailableSnapshots" xml:space="preserve"><value>Available snapshots</value></data>
   <data name="Restore_RestoreSelected" xml:space="preserve"><value>Restore selected snapshot</value></data>
   <data name="Restore_RestoreFromFile" xml:space="preserve"><value>Restore from file...</value></data>
   <data name="Restore_OpenChecklist" xml:space="preserve"><value>Open Checklist</value></data>
   <data name="Restore_AdvancedOptions" xml:space="preserve"><value>Advanced options</value></data>
-  <data name="Restore_AdvancedCaption" xml:space="preserve"><value>Override where the restore writes files. Use this when the backup was taken under a different Windows user name (e.g. sascha on the workstation, sasch on the laptop). All sub-paths (AppData\Roaming, AppData\Local, .claude, .cowork) are derived from this root. Leave blank to use %USERPROFILE%.</value></data>
+  <data name="Restore_AdvancedCaption" xml:space="preserve"><value>Override where the restore writes files. Use this when the backup was taken under a different Windows user name (e.g. sascha on the workstation, sasch on the laptop). All sub-paths (AppData\Roaming, AppData\Local, .claude, .codex, .cowork) are derived from this root. Leave blank to use %USERPROFILE%.</value></data>
   <data name="Restore_TargetUserProfile" xml:space="preserve"><value>Target user profile</value></data>
   <data name="Restore_IgnoreVersionMismatch" xml:space="preserve"><value>Ignore Claude Desktop version mismatch</value></data>
   <data name="Restore_IgnoreVersionMismatchHint" xml:space="preserve"><value>(skip the major-version block; chat-history schema may differ)</value></data>
@@ -83,8 +83,8 @@
   <data name="Logs_Caption" xml:space="preserve"><value>Most recent 500 lines from this session. Logs persist in memory only — restart clears them.</value></data>
 
   <!-- Schedule page -->
-  <data name="Schedule_Caption" xml:space="preserve"><value>Windows scheduled tasks visible from this machine. ClaudePortable-managed entries are highlighted in green; foreign tasks that touch Claude or Cowork paths (like a hand-written backup PowerShell script) are highlighted in orange. Use Refresh after creating or removing a task elsewhere.</value></data>
-  <data name="Schedule_FilterRelevant" xml:space="preserve"><value>Claude-related</value></data>
+  <data name="Schedule_Caption" xml:space="preserve"><value>Windows scheduled tasks visible from this machine. AgentPortable-managed entries are highlighted in green; foreign tasks that touch Claude, Cowork or Codex paths (like a hand-written backup PowerShell script) are highlighted in orange. Use Refresh after creating or removing a task elsewhere.</value></data>
+  <data name="Schedule_FilterRelevant" xml:space="preserve"><value>Agent-related</value></data>
   <data name="Schedule_FilterManaged" xml:space="preserve"><value>Managed only</value></data>
   <data name="Schedule_FilterAll" xml:space="preserve"><value>All tasks</value></data>
   <data name="Schedule_AutoBackupTitle" xml:space="preserve"><value>Automatic backup</value></data>
@@ -107,7 +107,7 @@
   <data name="Schedule_RowActions" xml:space="preserve"><value>Task actions</value></data>
 
   <!-- Tray icon -->
-  <data name="Tray_Open" xml:space="preserve"><value>Open ClaudePortable</value></data>
+  <data name="Tray_Open" xml:space="preserve"><value>Open AgentPortable</value></data>
   <data name="Tray_Quit" xml:space="preserve"><value>Quit</value></data>
 
   <!-- Main view model statuses -->
@@ -137,8 +137,8 @@
   <!-- Dialogs -->
   <data name="Dlg_PickProfileTitle" xml:space="preserve"><value>Pick the target user profile folder (C:\Users\&lt;name&gt;)</value></data>
   <data name="Dlg_AddTargetTitle" xml:space="preserve"><value>Select a folder to write backups into</value></data>
-  <data name="Dlg_PickZipTitle" xml:space="preserve"><value>Pick a ClaudePortable backup ZIP</value></data>
-  <data name="Dlg_ZipFilter" xml:space="preserve"><value>ClaudePortable backups (*.zip)|claude-backup_*.zip|All ZIP files (*.zip)|*.zip</value></data>
+  <data name="Dlg_PickZipTitle" xml:space="preserve"><value>Pick an AgentPortable backup ZIP</value></data>
+  <data name="Dlg_ZipFilter" xml:space="preserve"><value>AgentPortable backups (*.zip)|claude-backup_*.zip|All ZIP files (*.zip)|*.zip</value></data>
   <data name="Dlg_CloudOnlyText" xml:space="preserve"><value>'{0}' is currently cloud-only (placeholder). The restore will trigger a download and may take several minutes depending on backup size.
 
 Proceed?</value></data>
@@ -158,7 +158,7 @@ Close Claude Desktop now? (Yes = close for me, No = cancel restore)</value></dat
   <!-- Scheduled tasks view model -->
   <data name="Sched_ClickRefresh" xml:space="preserve"><value>Click Refresh to load scheduled tasks.</value></data>
   <data name="Sched_Loading" xml:space="preserve"><value>Loading scheduled tasks...</value></data>
-  <data name="Sched_StatusLine" xml:space="preserve"><value>{0} task(s) total · {1} managed by ClaudePortable · {2} Claude-related</value></data>
+  <data name="Sched_StatusLine" xml:space="preserve"><value>{0} task(s) total · {1} managed by AgentPortable · {2} agent-related</value></data>
   <data name="Sched_EnumFailed" xml:space="preserve"><value>Failed to enumerate tasks: {0}</value></data>
   <data name="Sched_DisableConfirmText" xml:space="preserve"><value>Disable scheduled task '{0}'?
 
@@ -166,27 +166,27 @@ The task will no longer trigger, but can be re-enabled later. Nothing is deleted
   <data name="Sched_DisableConfirmTitle" xml:space="preserve"><value>Disable task</value></data>
   <data name="Sched_DeleteConfirmText" xml:space="preserve"><value>Delete scheduled task '{0}'?
 
-This is permanent. To re-create it you would have to re-install via ClaudePortable or recreate the XML manually.</value></data>
+This is permanent. To re-create it you would have to re-install via AgentPortable or recreate the XML manually.</value></data>
   <data name="Sched_DeleteConfirmTitle" xml:space="preserve"><value>Delete task</value></data>
   <data name="Sched_XmlError" xml:space="preserve"><value>Could not read XML for '{0}' (exit {1}).</value></data>
   <data name="Sched_XmlTitle" xml:space="preserve"><value>View XML</value></data>
   <data name="Sched_XmlDialogTitle" xml:space="preserve"><value>XML: {0}</value></data>
   <data name="Sched_XmlTruncated" xml:space="preserve"><value>
 ...(truncated, full XML copied to clipboard)</value></data>
-  <data name="Sched_ManagedByClaudePortable" xml:space="preserve"><value>ClaudePortable</value></data>
-  <data name="Sched_ManagedByRelevant" xml:space="preserve"><value>Claude-related</value></data>
+  <data name="Sched_ManagedByClaudePortable" xml:space="preserve"><value>AgentPortable</value></data>
+  <data name="Sched_ManagedByRelevant" xml:space="preserve"><value>Agent-related</value></data>
   <data name="Sched_ManagedByOther" xml:space="preserve"><value>Other</value></data>
   <data name="Sched_LastRunExit" xml:space="preserve"><value>{0} (exit {1})</value></data>
 
   <!-- CLI: root -->
-  <data name="Cli_RootDesc" xml:space="preserve"><value>ClaudePortable - backup and restore Claude Desktop / Claude Code state.</value></data>
+  <data name="Cli_RootDesc" xml:space="preserve"><value>AgentPortable - backup and restore Claude Desktop, Claude Code and Codex state.</value></data>
   <data name="Cli_Lang" xml:space="preserve"><value>UI language for this run: en or hu. Defaults to the saved GUI choice, then the Windows display language.</value></data>
   <data name="Cli_Found" xml:space="preserve"><value>FOUND</value></data>
   <data name="Cli_Miss" xml:space="preserve"><value>MISS</value></data>
   <data name="Cli_Ok" xml:space="preserve"><value>OK</value></data>
 
   <!-- CLI: backup -->
-  <data name="Cli_Backup_Desc" xml:space="preserve"><value>Create a backup ZIP from local Claude data.</value></data>
+  <data name="Cli_Backup_Desc" xml:space="preserve"><value>Create a backup ZIP from local Claude and Codex data.</value></data>
   <data name="Cli_Backup_To" xml:space="preserve"><value>Destination folder for the backup ZIP.</value></data>
   <data name="Cli_Backup_Tier" xml:space="preserve"><value>Retention tier to mark this backup with.</value></data>
   <data name="Cli_Backup_DryRun" xml:space="preserve"><value>Plan the backup without writing any data.</value></data>
@@ -209,12 +209,12 @@ This is permanent. To re-create it you would have to re-install via ClaudePortab
   <data name="Cli_Rotation_Failed" xml:space="preserve"><value>warning: rotation failed: {0}</value></data>
 
   <!-- CLI: restore -->
-  <data name="Cli_Restore_Desc" xml:space="preserve"><value>Restore Claude data from a backup ZIP.</value></data>
+  <data name="Cli_Restore_Desc" xml:space="preserve"><value>Restore Claude and Codex data from a backup ZIP.</value></data>
   <data name="Cli_Restore_From" xml:space="preserve"><value>Backup ZIP to restore from.</value></data>
-  <data name="Cli_Restore_Yes" xml:space="preserve"><value>Confirm that existing Claude data will be moved aside.</value></data>
+  <data name="Cli_Restore_Yes" xml:space="preserve"><value>Confirm that existing Claude and Codex data will be moved aside.</value></data>
   <data name="Cli_Restore_TargetUser" xml:space="preserve"><value>Override the target Windows user profile path (advanced).</value></data>
   <data name="Cli_Restore_IgnoreVersion" xml:space="preserve"><value>Proceed even when the backup's claudeDesktopVersion is a major version behind the installed Claude Desktop.</value></data>
-  <data name="Cli_Restore_NeedYes" xml:space="preserve"><value>error: restore requires --yes. Existing Claude data will be moved to &lt;folder&gt;_backup_&lt;timestamp&gt;.</value></data>
+  <data name="Cli_Restore_NeedYes" xml:space="preserve"><value>error: restore requires --yes. Existing Claude and Codex data will be moved to &lt;folder&gt;_backup_&lt;timestamp&gt;.</value></data>
   <data name="Cli_Restore_Complete" xml:space="preserve"><value>restore complete.</value></data>
   <data name="Cli_Restore_ManifestSchema" xml:space="preserve"><value>manifest schema:     {0}</value></data>
   <data name="Cli_Restore_CreatedAt" xml:space="preserve"><value>backup created at:   {0}</value></data>
@@ -236,8 +236,8 @@ This is permanent. To re-create it you would have to re-install via ClaudePortab
   <data name="Cli_List_HdrFile" xml:space="preserve"><value>file</value></data>
 
   <!-- CLI: discover -->
-  <data name="Cli_Discover_Desc" xml:space="preserve"><value>Report detected Claude paths and sync clients.</value></data>
-  <data name="Cli_Discover_ClaudePaths" xml:space="preserve"><value>== Claude paths ==</value></data>
+  <data name="Cli_Discover_Desc" xml:space="preserve"><value>Report detected Claude / Codex paths and sync clients.</value></data>
+  <data name="Cli_Discover_ClaudePaths" xml:space="preserve"><value>== Agent paths ==</value></data>
   <data name="Cli_Discover_SyncClients" xml:space="preserve"><value>== Sync clients ==</value></data>
   <data name="Cli_Discover_None" xml:space="preserve"><value>  (none detected)</value></data>
   <data name="Cli_Discover_Source" xml:space="preserve"><value>           source: {0}</value></data>
@@ -249,7 +249,7 @@ This is permanent. To re-create it you would have to re-install via ClaudePortab
   <data name="Cli_Schedule_Name" xml:space="preserve"><value>Task Scheduler task name.</value></data>
   <data name="Cli_Schedule_NoInstall" xml:space="preserve"><value>Write XML only; do not invoke schtasks.exe.</value></data>
   <data name="Cli_Schedule_NameArg" xml:space="preserve"><value>Full task name (e.g. \ClaudePortable-Daily).</value></data>
-  <data name="Cli_Schedule_TaskDescription" xml:space="preserve"><value>ClaudePortable daily backup to {0}</value></data>
+  <data name="Cli_Schedule_TaskDescription" xml:space="preserve"><value>AgentPortable daily backup to {0}</value></data>
   <data name="Cli_Schedule_Install_Desc" xml:space="preserve"><value>Create or replace the scheduled task.</value></data>
   <data name="Cli_Schedule_ErrParseAt" xml:space="preserve"><value>error: could not parse --at '{0}'. Expected HH:mm.</value></data>
   <data name="Cli_Schedule_Wrote" xml:space="preserve"><value>wrote: {0}</value></data>
@@ -261,10 +261,10 @@ This is permanent. To re-create it you would have to re-install via ClaudePortab
   <data name="Cli_Schedule_ErrDelete" xml:space="preserve"><value>error: schtasks.exe /Delete exited with code {0}.</value></data>
   <data name="Cli_Schedule_Deleted" xml:space="preserve"><value>deleted scheduled task '{0}'.</value></data>
   <data name="Cli_Schedule_Emit_Desc" xml:space="preserve"><value>Emit the Task Scheduler XML to stdout without installing.</value></data>
-  <data name="Cli_Schedule_List_Desc" xml:space="preserve"><value>List Windows scheduled tasks and flag Claude relevance.</value></data>
-  <data name="Cli_Schedule_List_All" xml:space="preserve"><value>Include foreign tasks unrelated to Claude (default: hide them).</value></data>
-  <data name="Cli_Schedule_List_Managed" xml:space="preserve"><value>Only list ClaudePortable-managed tasks.</value></data>
-  <data name="Cli_Schedule_List_Relevant" xml:space="preserve"><value>Only list ClaudePortable + Claude-related tasks (default).</value></data>
+  <data name="Cli_Schedule_List_Desc" xml:space="preserve"><value>List Windows scheduled tasks and flag Claude / Codex relevance.</value></data>
+  <data name="Cli_Schedule_List_All" xml:space="preserve"><value>Include foreign tasks unrelated to Claude or Codex (default: hide them).</value></data>
+  <data name="Cli_Schedule_List_Managed" xml:space="preserve"><value>Only list AgentPortable-managed tasks.</value></data>
+  <data name="Cli_Schedule_List_Relevant" xml:space="preserve"><value>Only list AgentPortable-managed + agent-related tasks (default).</value></data>
   <data name="Cli_Schedule_List_Json" xml:space="preserve"><value>Emit JSON instead of an aligned table.</value></data>
   <data name="Cli_Schedule_List_Empty" xml:space="preserve"><value>(no tasks matched the filter)</value></data>
   <data name="Cli_Hdr_ManagedBy" xml:space="preserve"><value>MANAGED-BY</value></data>

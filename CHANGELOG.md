@@ -1,12 +1,40 @@
 # Changelog
 
-All notable changes to ClaudePortable are documented here. Format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
-adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to AgentPortable (formerly ClaudePortable) are documented
+here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Renamed to AgentPortable.** Window title, tray icon, MSI product name,
+  Start-menu shortcut, release artifacts (`AgentPortable-<version>-portable.exe`
+  / `.msi`) and all UI/CLI texts (English + Hungarian) use the new name. For
+  upgrade compatibility the CLI stays `claudeportable.exe`, and the install
+  folder, `%LOCALAPPDATA%\ClaudePortable`, `<SyncClient>\ClaudePortable`,
+  `claude-backup_*.zip` and `ClaudePortable-Daily` task names are unchanged.
+  Tasks named `AgentPortable-*` are also recognised as managed.
+
 ### Added
+
+- **Codex backup.** The OpenAI Codex state root (`%CODEX_HOME%`, default
+  `%USERPROFILE%\.codex`) is backed up under `codex/dotcodex`: `config.toml`,
+  `AGENTS.md`, sessions and archived sessions, skills, rules, agents,
+  memories, hooks, generated images and the sqlite state databases. The Codex
+  desktop app's data (`%APPDATA%\Codex`, Store package `OpenAI.Codex_*`) is
+  backed up under `codex-desktop/appdata`. Credentials (`auth.json`,
+  `.sandbox-secrets`), machine-bound sandbox identity, downloaded binaries
+  (`packages/`, `plugins/.plugin-appserver/`), logs, locks, caches and the
+  app's embedded browser profile are excluded.
+  - Restore refuses to start while Codex is running if the backup contains
+    Codex data, rewrites user-profile paths in `*.toml` (Codex
+    `config.toml`) as well as `*.json`, and on a same-machine restore copies
+    `auth.json` and the sandbox setup back from the safety backup so you stay
+    signed in.
+  - The post-restore checklist adds `codex login` steps; the Schedule view
+    flags tasks touching `.codex` as relevant.
+  - SQLite `*-shm` files are now excluded everywhere (always regenerated).
 
 - **Single-instance GUI.** A second launch of the window/tray app activates the
   already-running instance instead of starting another process. CLI commands

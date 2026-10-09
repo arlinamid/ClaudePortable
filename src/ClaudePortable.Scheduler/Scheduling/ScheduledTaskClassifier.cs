@@ -39,13 +39,16 @@ public static class ScheduledTaskClassifier
     {
         var bareName = StripFolder(info.Name);
         if (bareName.StartsWith("ClaudePortable-", StringComparison.OrdinalIgnoreCase)
-            || bareName.Equals("ClaudePortable", StringComparison.OrdinalIgnoreCase))
+            || bareName.Equals("ClaudePortable", StringComparison.OrdinalIgnoreCase)
+            || bareName.StartsWith("AgentPortable-", StringComparison.OrdinalIgnoreCase)
+            || bareName.Equals("AgentPortable", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
         if (!string.IsNullOrEmpty(info.Author)
-            && info.Author.Contains("ClaudePortable", StringComparison.OrdinalIgnoreCase))
+            && (info.Author.Contains("ClaudePortable", StringComparison.OrdinalIgnoreCase)
+                || info.Author.Contains("AgentPortable", StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }

@@ -1,6 +1,6 @@
 #Requires -Version 7
 #
-# Build script for ClaudePortable MSI.
+# Build script for the AgentPortable MSI.
 # Steps:
 #   1. Publish ClaudePortable.App as a self-contained win-x64 single app.
 #   2. Invoke WiX via dotnet build on the .wixproj.
@@ -19,7 +19,7 @@ $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $appCsproj = Join-Path $root "src\ClaudePortable.App\ClaudePortable.App.csproj"
 $installerCsproj = Join-Path $root "src\ClaudePortable.Installer\ClaudePortable.Installer.wixproj"
 $staging = Join-Path $root "src\ClaudePortable.Installer\staging"
-$outputMsi = "ClaudePortable-$Version.msi"
+$outputMsi = "AgentPortable-$Version.msi"
 
 Write-Host "[1/3] Cleaning staging..." -ForegroundColor Cyan
 if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }

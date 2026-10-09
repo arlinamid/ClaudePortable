@@ -1,6 +1,8 @@
-# ClaudePortable
+# AgentPortable
 
-Windows desktop app (WPF + CLI) that backs up and restores Claude Desktop, Cowork projects, and Claude Code state as a single ZIP. The ZIP is written to any local folder - USB stick, OneDrive-synced folder, Google Drive Desktop mount, Dropbox, NAS share - and whatever sync client you already have takes it from there. **No cloud APIs, no OAuth registrations, no upload-resume logic.**
+Windows desktop app (WPF + CLI) that backs up and restores your AI coding agents' local state - Claude Desktop, Cowork projects, Claude Code, the OpenAI Codex CLI and the Codex desktop app - as a single ZIP. The ZIP is written to any local folder - USB stick, OneDrive-synced folder, Google Drive Desktop mount, Dropbox, NAS share - and whatever sync client you already have takes it from there. **No cloud APIs, no OAuth registrations, no upload-resume logic.**
+
+> **Formerly ClaudePortable.** Only the product name changed. The CLI is still `claudeportable.exe`, and app data (`%LOCALAPPDATA%\ClaudePortable`), sync folders (`<SyncClient>\ClaudePortable`), backup file names (`claude-backup_*.zip`) and scheduled task names (`ClaudePortable-Daily`) keep their old names, so existing backups, settings and tasks keep working after an upgrade.
 
 > Status: alpha, usable. Tested roundtrip from a live workstation (~14 GB `.claude` + Cowork state) to a fresh laptop with a different Windows username, via OneDrive. See the [latest release](../../releases/latest) for the current build.
 
@@ -17,12 +19,14 @@ Windows desktop app (WPF + CLI) that backs up and restores Claude Desktop, Cowor
 | **Cowork project folders** | Auto-discovered from `userSelectedFolders` in each session's `local_*.json` | Every folder you opened in a Cowork session is backed up to its own archive prefix with sensible project-noise exclusions (`node_modules`, `.git/objects`, `.venv`, etc.). |
 | Claude Code user profile | `%USERPROFILE%\.claude` | Skills, plugins manifests, projects, sessions, settings, CLAUDE.md. |
 | Claude Code plugins / skills | Under `.claude\plugins\` and `.claude\skills\` | Content preserved. Remote plugin binary cache (`.remote-plugins/`) is excluded; a fresh `claude plugin sync` after restore refills it. |
+| **Codex CLI / app state** | `%CODEX_HOME%`, default `%USERPROFILE%\.codex` | `config.toml`, `AGENTS.md`, `sessions/` + `archived_sessions/` (conversation history), `skills/`, `rules/`, `agents/`, memories, `hooks.json`, `generated_images/`, and the sqlite state/thread-history databases. Excluded: `auth.json`, sandbox identity (`.sandbox*`, `cap_sid`, `installation_id`), downloaded binaries (`packages/`, `plugins/.plugin-appserver/`), plugin cache, logs, locks and temp folders. |
+| Codex desktop app | `%APPDATA%\Codex` (Store package `OpenAI.Codex_*`, resolved by wildcard) | Preferences, Local Storage. The embedded browser profile (`web/`, cookies and site logins) and Chromium caches are excluded. |
 
 Explicitly **not** in scope, on purpose:
 
-- OAuth refresh tokens, API keys, `config.json` with `oauth:tokenCache`, DPAPI blobs - user re-authenticates connectors and Claude Code (`claude login`) after restore.
+- OAuth refresh tokens, API keys, `config.json` with `oauth:tokenCache`, DPAPI blobs, Codex `auth.json` - user re-authenticates connectors, Claude Code (`claude login`) and Codex (`codex login`) after restore. On a same-machine restore the existing Codex `auth.json` and sandbox setup are carried over from the safety backup, so you stay signed in.
 - Active Cowork VM runtime state (processes, scheduled tasks) - only persistent artifacts.
-- Cloud-client upload status - ClaudePortable writes to a folder, the sync client propagates. Zip destination is flagged if the folder carries `FILE_ATTRIBUTE_OFFLINE` / `RECALL_ON_DATA_ACCESS` so you know OneDrive / GDrive is behind.
+- Cloud-client upload status - AgentPortable writes to a folder, the sync client propagates. Zip destination is flagged if the folder carries `FILE_ATTRIBUTE_OFFLINE` / `RECALL_ON_DATA_ACCESS` so you know OneDrive / GDrive is behind.
 
 ## Download
 
@@ -30,8 +34,8 @@ Grab [the latest release](../../releases/latest). Two artifacts:
 
 | Artifact | Best for | Install | Uninstall |
 |---|---|---|---|
-| `ClaudePortable-<version>-portable.exe` | Running on any machine, no admin | Double-click | Delete exe + `%LOCALAPPDATA%\ClaudePortable` |
-| `ClaudePortable-<version>.msi` | Permanent install with Start-menu entry | Run the MSI | Apps & Features -> ClaudePortable -> Uninstall |
+| `AgentPortable-<version>-portable.exe` | Running on any machine, no admin | Double-click | Delete exe + `%LOCALAPPDATA%\ClaudePortable` |
+| `AgentPortable-<version>.msi` | Permanent install with Start-menu entry | Run the MSI | Apps & Features -> AgentPortable -> Uninstall |
 
 Both are **self-contained** and bundle the .NET 10 Windows Desktop runtime. A `.sha256` file ships next to the portable exe for integrity verification.
 
@@ -45,7 +49,7 @@ Releases are not code-signed yet (see [issues](../../issues) for the signing pla
 Optional integrity check:
 
 ```powershell
-(Get-FileHash .\ClaudePortable-<version>-portable.exe -Algorithm SHA256).Hash
+(Get-FileHash .\AgentPortable-<version>-portable.exe -Algorithm SHA256).Hash
 # compare against the content of the .sha256 file
 ```
 
@@ -55,10 +59,10 @@ Launch with no arguments (or `--gui`). Warm-dark UI in the Claude Desktop style,
 
 - **Status** - summary cards for backups / targets / discovered paths, plus a grid of existing snapshots per target.
 - **Targets** - folder list. Auto-discovers `<SyncClient>\ClaudePortable` on every recognised sync client (OneDrive Personal / Business, Dropbox, Google Drive Desktop), so a restore on a second machine picks up the first machine's backups without configuration. Manual add/remove available.
-- **Discovery** - read-only view of detected Claude paths + sync clients.
+- **Discovery** - read-only view of detected Claude + Codex paths and sync clients.
 - **Restore** - backup grid with per-row `STATUS` (`Synced` / `Cloud-only` / `Unreadable`), `Restore from file...` escape hatch for a ZIP that is not in any configured target, and an **Advanced options** panel for overriding the target user profile (e.g. restoring a `sascha` backup onto a laptop with `sasch` as the user) and for the version-gate override.
 - **Logs** - last 500 log lines from the current session, rendered mono.
-- **Schedule** - enumerates every Windows scheduled task on this machine via `schtasks.exe /Query /FO CSV /V`. ClaudePortable-managed entries are flagged green (name starts with `ClaudePortable-` or author contains `ClaudePortable`). Tasks that aren't managed but touch a Claude/Cowork/`.claude` path - including hand-written backup PowerShell scripts that compete with ClaudePortable - are flagged orange. Per-row buttons run/disable/enable/delete the task and copy its raw XML to the clipboard. Use this to spot legacy `\Claude-Desktop-Backup`-style tasks that write loose-file backups into a long-path OneDrive folder and break sync.
+- **Schedule** - enumerates every Windows scheduled task on this machine via `schtasks.exe /Query /FO CSV /V`. AgentPortable-managed entries are flagged green (name starts with `ClaudePortable-` / `AgentPortable-`, or the author contains either name). Tasks that aren't managed but touch a Claude/Cowork/`.claude`/`.codex` path - including hand-written backup PowerShell scripts that compete with AgentPortable - are flagged orange. Per-row buttons run/disable/enable/delete the task and copy its raw XML to the clipboard. Use this to spot legacy `\Claude-Desktop-Backup`-style tasks that write loose-file backups into a long-path OneDrive folder and break sync.
 
 A ProgressBar on the status bar appears for the duration of any backup or restore, showing the current phase (`Extracting archive`, `Writing cowork-projects/<hash>`, etc.) with file-level percentage. Both commands run on the thread pool so the window stays responsive during multi-GB operations.
 
@@ -80,7 +84,7 @@ Strings live in `src/ClaudePortable.App/Localization/Strings.resx` (English, neu
 Same binary - if you pass arguments it attaches to the parent console.
 
 ```
-claudeportable discover                                # detected Claude paths + sync clients
+claudeportable discover                                # detected Claude / Codex paths + sync clients
 claudeportable backup   --to <folder> [--tier daily]   # create a backup ZIP (auto-rotates unless --no-rotate)
 claudeportable list     --in <folder> [--json]         # list backups
 claudeportable restore  --from <zip>  --yes [--target-user <path>] [--ignore-version-mismatch]
@@ -90,7 +94,7 @@ claudeportable schedule list [--all|--managed|--relevant] [--json]  # enumerate 
 claudeportable schedule disable|enable|run <name>       # toggle / trigger a scheduled task by full name
 ```
 
-Exit codes: `0` ok, `1` usage error, `2` precondition fail (destination unwritable, Claude Desktop running), `3` runtime error (I/O, invalid backup, version block).
+Exit codes: `0` ok, `1` usage error, `2` precondition fail (destination unwritable, Claude Desktop or Codex running), `3` runtime error (I/O, invalid backup, version block).
 
 ### Example
 
@@ -121,11 +125,11 @@ The typical workflow across two machines:
 
 1. Workstation runs `Backup now`. ZIP lands in `%USERPROFILE%\OneDrive\ClaudePortable\claude-backup_<ts>_<host>_daily.zip`.
 2. OneDrive syncs to the laptop.
-3. Laptop launches ClaudePortable. Auto-discovery finds the ZIP in `<OneDrive>\ClaudePortable\`. The Status column tells you whether it is fully synced or still a cloud-only placeholder.
-4. If the laptop's Windows username differs, open **Advanced options** on the Restore tab and pick the target user profile (`C:\Users\<other-user>`). The restore engine rewrites every reference in JSON configs (and the filesystem destination) from the old username to the new.
-5. Claude Desktop must be closed on the laptop before restoring. If it is running, the app offers to close it.
+3. Laptop launches AgentPortable. Auto-discovery finds the ZIP in `<OneDrive>\ClaudePortable\`. The Status column tells you whether it is fully synced or still a cloud-only placeholder.
+4. If the laptop's Windows username differs, open **Advanced options** on the Restore tab and pick the target user profile (`C:\Users\<other-user>`). The restore engine rewrites every reference in JSON and TOML configs (and the filesystem destination) from the old username to the new.
+5. Claude Desktop must be closed on the laptop before restoring. If it is running, the app offers to close it. When the backup contains Codex data, the Codex app and any `codex` CLI sessions must be closed too.
 6. Click **Restore selected snapshot**. Existing `.claude` and `%APPDATA%\Claude` content is moved aside to `<folder>_backup_<timestamp>` before the new data is written.
-7. After completion, `claude login` on the laptop and re-authorise any connectors - token caches were deliberately excluded.
+7. After completion, `claude login` and `codex login` on the laptop and re-authorise any connectors - token caches were deliberately excluded.
 
 Store-app reparse points (Claude Desktop from the Microsoft Store) refuse `Directory.Move` on their targets, so the restore engine detects them and overlays files instead of renaming. This is expected and logged as a single informational warning, not an error.
 
@@ -178,7 +182,7 @@ scripts/
 
 ## Security model
 
-- The app **never** reads OAuth tokens or credentials. `config.json` (contains `oauth:tokenCache`), `tokens.dat`, `Login Data*`, `Cookies*`, and `mcp-needs-auth-cache.json` are all explicitly excluded.
+- The app **never** archives OAuth tokens or credentials. `config.json` (contains `oauth:tokenCache`), `tokens.dat`, Codex `auth.json` and `.sandbox-secrets`, the Codex app's embedded browser profile, `Login Data*`, `Cookies*`, and `mcp-needs-auth-cache.json` are all explicitly excluded.
 - Live Claude Desktop files are opened with `FileShare.ReadWrite | FileShare.Delete`; unreadable ones are logged and skipped rather than failing the whole backup.
 - Restore is two-stage: safety-rename of the existing folder, then file-by-file overlay. Nothing is deleted until you delete the safety backup manually.
 - Cowork project folder auto-discovery refuses drive roots, the user profile root, and every system folder - a misconfigured session cannot ask the tool to back up `C:\`.
@@ -192,7 +196,7 @@ dotnet build
 dotnet test
 ```
 
-98 xUnit cases cover exclusion globs (incl. Claude Extensions paths that must NOT be excluded), manifest (de)serialisation, path rewriter across escaped / single-backslash / forward-slash and arbitrary home-relative paths, retention rotation simulated over 10 weeks with a fake clock, FolderTarget atomic I/O, end-to-end backup roundtrip on synthetic data, Task Scheduler XML emission, version gating, and the scheduled-task enumerator (CSV parser for German-locale `schtasks.exe` output, Claude-relevance classifier, and command-shape assertions for the installer wrapper).
+142 xUnit cases cover exclusion globs (incl. Claude Extensions paths that must NOT be excluded), manifest (de)serialisation, path rewriter across escaped / single-backslash / forward-slash and arbitrary home-relative paths, retention rotation simulated over 10 weeks with a fake clock, FolderTarget atomic I/O, end-to-end backup roundtrip on synthetic data, Task Scheduler XML emission, version gating, and the scheduled-task enumerator (CSV parser for German-locale `schtasks.exe` output, Claude-relevance classifier, and command-shape assertions for the installer wrapper).
 
 CI runs the same commands on `windows-latest` via `.github/workflows/ci.yml`. The release pipeline at `.github/workflows/release.yml` builds the MSI + portable exe + SHA-256 on `v*` tag push and attaches them to the GitHub Release.
 

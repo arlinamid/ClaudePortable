@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:ClaudePortable.App.Ui.Converters"
         xmlns:loc="clr-namespace:ClaudePortable.App.Localization"
-        Title="ClaudePortable"
+        Title="AgentPortable"
         Icon="pack://application:,,,/Assets/app.ico"
         Width="1120" Height="720"
         MinWidth="820" MinHeight="520"
@@ -55,7 +55,7 @@
                 <StackPanel Grid.Row="0">
                     <StackPanel Orientation="Horizontal" Margin="20,24,20,0">
                         <Rectangle Width="22" Height="22" RadiusX="5" RadiusY="5" Fill="{DynamicResource AccentBrush}" />
-                        <TextBlock Text="ClaudePortable" Margin="10,0,0,0" FontSize="15" FontWeight="SemiBold"
+                        <TextBlock Text="AgentPortable" Margin="10,0,0,0" FontSize="15" FontWeight="SemiBold"
                                    VerticalAlignment="Center" />
                     </StackPanel>
                     <TextBlock Style="{DynamicResource SidebarVersion}" Text="{Binding AppVersionLabel}" />
