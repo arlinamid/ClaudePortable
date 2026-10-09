@@ -39,6 +39,11 @@ public static class PostRestoreChecklistBuilder
         sb.AppendLine("- [ ] Claude Code: run `claude login`\n");
         sb.AppendLine("- [ ] Re-authorize each connector (Gmail, Slack, GDrive, etc.)\n");
         sb.AppendLine("- [ ] Run `claude plugin sync` to reload installed plugins\n");
+        if (manifest.SourcePaths.Keys.Any(k => k.StartsWith("codex", StringComparison.OrdinalIgnoreCase)))
+        {
+            sb.AppendLine("- [ ] Codex: run `codex login` or sign in once in the Codex app (`auth.json` is never backed up)\n");
+            sb.AppendLine("- [ ] Codex: start it once so it re-downloads its runtimes, plugin cache and Windows sandbox setup\n");
+        }
 
         // Plugin reinstall hint
         var pluginDir = Path.Combine(
@@ -129,6 +134,7 @@ public static class PostRestoreChecklistBuilder
             - [ ] Claude Code: run `claude login`
             - [ ] Re-authorize each connector (Gmail, Slack, GDrive, etc.)
             - [ ] Run `claude plugin sync` to reload installed plugins
+            - [ ] Codex (if included): run `codex login` or sign in once in the Codex app
 
             ## Safety Backups
             Existing folders are moved aside to `<folder>_backup_<timestamp>` before overlay.

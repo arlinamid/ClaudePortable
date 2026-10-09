@@ -99,6 +99,38 @@ public class BackupRoundtripTests : IDisposable
         Assert.NotNull(archive.GetEntry("claude-code/dotclaude/settings.json"));
     }
 
+    [Fact]
+    public async Task BackupCapturesCodexStateWithoutCredentials()
+    {
+        var dotCodex = Path.Combine(_fakeUserProfile, ".codex");
+        Directory.CreateDirectory(Path.Combine(dotCodex, "sessions", "2026", "10"));
+        Directory.CreateDirectory(Path.Combine(dotCodex, "packages", "standalone"));
+        File.WriteAllText(Path.Combine(dotCodex, "config.toml"), "model = \"gpt-5\"");
+        File.WriteAllText(Path.Combine(dotCodex, "AGENTS.md"), "# agents");
+        File.WriteAllText(Path.Combine(dotCodex, "sessions", "2026", "10", "rollout-1.jsonl"), "{}");
+        File.WriteAllText(Path.Combine(dotCodex, "auth.json"), @"{""tokens"":""secret""}");
+        File.WriteAllText(Path.Combine(dotCodex, "packages", "standalone", "codex.exe"), "bin");
+
+        var destination = Path.Combine(_root, "backups");
+        Directory.CreateDirectory(destination);
+
+        var discovery = new FakeDiscovery(new List<DiscoveredClaudePath>
+        {
+            new("codexUserProfile", dotCodex, true, "test"),
+        });
+
+        var engine = new BackupEngine(discovery, new ZipArchiveWriter(), NullCoworkProjectDiscovery.Instance);
+        var outcome = await engine.CreateBackupAsync(new(destination, RetentionTier.Daily));
+
+        Assert.Equal(dotCodex, outcome.Manifest.ArchiveTargets["codex/dotcodex"]);
+        using var archive = ZipFile.OpenRead(outcome.ZipPath);
+        Assert.NotNull(archive.GetEntry("codex/dotcodex/config.toml"));
+        Assert.NotNull(archive.GetEntry("codex/dotcodex/AGENTS.md"));
+        Assert.NotNull(archive.GetEntry("codex/dotcodex/sessions/2026/10/rollout-1.jsonl"));
+        Assert.Null(archive.GetEntry("codex/dotcodex/auth.json"));
+        Assert.Null(archive.GetEntry("codex/dotcodex/packages/standalone/codex.exe"));
+    }
+
     public void Dispose()
     {
         try

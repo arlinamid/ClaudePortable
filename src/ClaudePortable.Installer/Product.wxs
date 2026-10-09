@@ -2,7 +2,7 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
 
-  <Package Name="ClaudePortable"
+  <Package Name="AgentPortable"
            Manufacturer="Sascha Haase"
            Version="$(AppVersion)"
            UpgradeCode="6d7e8f1c-2a3b-4c5d-9e0f-112233445566"
@@ -17,8 +17,11 @@
     <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
     <Property Id="ARPHELPLINK" Value="https://github.com/arlinamid/ClaudePortable" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/arlinamid/ClaudePortable" />
-    <Property Id="ARPCOMMENTS" Value="Backup and restore Claude Desktop / Claude Code state as a single ZIP." />
+    <Property Id="ARPCOMMENTS" Value="Backup and restore Claude Desktop, Claude Code and Codex state as a single ZIP." />
 
+    <!-- Product is branded AgentPortable; the install folder, registry key
+         and claudeportable.exe keep their original names so a major upgrade
+         does not break scheduled tasks pointing at the installed exe. -->
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="ClaudePortable" />
     </StandardDirectory>
@@ -26,8 +29,8 @@
     <StandardDirectory Id="ProgramMenuFolder">
       <Component Id="StartMenuShortcut" Guid="79b7f86d-0d56-4d61-a1ad-1f13c0a93b9e">
         <Shortcut Id="StartMenuShortcut"
-                  Name="ClaudePortable"
-                  Description="Backup and restore Claude Desktop / Claude Code state"
+                  Name="AgentPortable"
+                  Description="Backup and restore Claude Desktop, Claude Code and Codex state"
                   Target="[INSTALLFOLDER]claudeportable.exe"
                   Arguments="--gui"
                   Icon="AppIcon.ico"
@@ -41,7 +44,7 @@
       </Component>
     </StandardDirectory>
 
-    <Feature Id="Core" Title="ClaudePortable Core" Level="1">
+    <Feature Id="Core" Title="AgentPortable Core" Level="1">
       <ComponentRef Id="StartMenuShortcut" />
       <Files Directory="INSTALLFOLDER" Include="$(AppStageDir)\**" />
     </Feature>
@@ -54,7 +57,7 @@
     -->
     <WixVariable Id="WixUILicenseRtf" Value="$(sys.SOURCEFILEDIR)License.rtf" />
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
-    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch ClaudePortable" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch AgentPortable" />
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
 
     <SetProperty Id="WixShellExecTarget" Value="[INSTALLFOLDER]claudeportable.exe" After="CostFinalize" />

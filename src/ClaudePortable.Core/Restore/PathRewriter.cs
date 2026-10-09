@@ -39,7 +39,11 @@ public sealed class PathRewriter : IPathRewriter
         var oldUserName = Path.GetFileName(oldUserProfile.TrimEnd('\\', '/'));
         var newUserName = Path.GetFileName(newUserProfile.TrimEnd('\\', '/'));
 
-        foreach (var file in Directory.EnumerateFiles(rootFolder, "*.json", SearchOption.AllDirectories))
+        // *.toml covers Codex's config.toml, whose [projects."C:\Users\..."]
+        // trust entries and MCP server paths are user-profile absolute.
+        var candidates = Directory.EnumerateFiles(rootFolder, "*.json", SearchOption.AllDirectories)
+            .Concat(Directory.EnumerateFiles(rootFolder, "*.toml", SearchOption.AllDirectories));
+        foreach (var file in candidates)
         {
             filesScanned++;
             string content;
@@ -52,7 +56,13 @@ public sealed class PathRewriter : IPathRewriter
                 continue;
             }
 
-            var (replaced, newContent) = ReplaceIn(content, oldUserName, newUserName);
+            // Whole-profile rewrite first: handles profiles outside X:\Users
+            // (e.g. D:\Profiles\jane) and a different drive or profile folder
+            // name on the restore machine. The user-name pass then catches
+            // \Users\<old>\ references on other drives.
+            var (profileReplaced, afterProfile) = ReplaceProfileIn(content, oldUserProfile, newUserProfile);
+            var (nameReplaced, newContent) = ReplaceIn(afterProfile, oldUserName, newUserName);
+            var replaced = profileReplaced + nameReplaced;
             if (replaced > 0)
             {
                 File.WriteAllText(file, newContent);
@@ -62,6 +72,46 @@ public sealed class PathRewriter : IPathRewriter
         }
 
         return new PathRewriteResult(filesScanned, filesChanged, replacementsMade);
+    }
+
+    /// <summary>
+    /// Replace the old profile root with the new one in its three common
+    /// encodings: JSON-escaped (C:\\Users\\a), plain (C:\Users\a) and forward
+    /// slash (C:/Users/a). The match must end at a path boundary so
+    /// C:\Users\sam never rewrites C:\Users\samantha.
+    /// </summary>
+    internal static (int Replacements, string NewContent) ReplaceProfileIn(string content, string oldUserProfile, string newUserProfile)
+    {
+        var oldRoot = oldUserProfile.TrimEnd('\\', '/');
+        var newRoot = newUserProfile.TrimEnd('\\', '/');
+        if (oldRoot.Length < 3
+            || newRoot.Length == 0
+            || string.Equals(oldRoot, newRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return (0, content);
+        }
+
+        var count = 0;
+        var result = content;
+        foreach (var (from, to) in new[]
+        {
+            (oldRoot.Replace(@"\", @"\\", StringComparison.Ordinal), newRoot.Replace(@"\", @"\\", StringComparison.Ordinal)),
+            (oldRoot, newRoot),
+            (oldRoot.Replace('\\', '/'), newRoot.Replace('\\', '/')),
+        })
+        {
+            var pattern = new Regex(
+                // No whitespace in the boundary: "C:\Users\John" must not
+                // rewrite the prefix of "C:\Users\John Smith".
+                Regex.Escape(from) + @"(?=[\\/""';,]|$)",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            result = pattern.Replace(result, _ =>
+            {
+                count++;
+                return to;
+            });
+        }
+        return (count, result);
     }
 
     internal static (int Replacements, string NewContent) ReplaceIn(string content, string oldUserName, string newUserName)

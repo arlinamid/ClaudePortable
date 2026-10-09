@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using ClaudePortable.Core.Archive;
 using ClaudePortable.Core.Manifest;
 using ClaudePortable.Targets;
 
@@ -27,16 +28,16 @@ public sealed class RetentionManager
             return RotationReport.Empty;
         }
 
+        // Rotate each (machine, selection) set on its own. A sync folder is
+        // often shared by several PCs, and a user may mix full backups with
+        // Claude-only or Codex-only ones; pooling them would let one set's
+        // dailies prune another set's only copies.
         var promoted = new List<string>();
-        PromoteToWeekly(target, backups, promoted);
-        backups = target.ListBackups().Where(b => b.Manifest is not null).ToList();
-        PromoteToMonthly(target, backups, promoted);
-        backups = target.ListBackups().Where(b => b.Manifest is not null).ToList();
-
         var pruned = new List<string>();
-        PruneTier(target, backups, RetentionTier.Daily, _policy.DailyKeep, pruned);
-        PruneTier(target, backups, RetentionTier.Weekly, _policy.WeeklyKeep, pruned);
-        PruneTier(target, backups, RetentionTier.Monthly, _policy.MonthlyKeep, pruned);
+        foreach (var partition in backups.Select(PartitionKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList())
+        {
+            RotatePartition(target, partition, promoted, pruned);
+        }
 
         var final = target.ListBackups().Where(b => b.Manifest is not null).ToList();
         return new RotationReport(
@@ -46,6 +47,25 @@ public sealed class RetentionManager
             WeeklyAfter: final.Count(b => b.Manifest!.RetentionTier == RetentionTier.Weekly),
             MonthlyAfter: final.Count(b => b.Manifest!.RetentionTier == RetentionTier.Monthly));
     }
+
+    private void RotatePartition(FolderTarget target, string partition, List<string> promoted, List<string> pruned)
+    {
+        List<BackupDescriptor> Load() => target.ListBackups()
+            .Where(b => b.Manifest is not null
+                && string.Equals(PartitionKey(b), partition, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        PromoteToWeekly(target, Load(), promoted);
+        PromoteToMonthly(target, Load(), promoted);
+
+        var backups = Load();
+        PruneTier(target, backups, RetentionTier.Daily, _policy.DailyKeep, pruned);
+        PruneTier(target, backups, RetentionTier.Weekly, _policy.WeeklyKeep, pruned);
+        PruneTier(target, backups, RetentionTier.Monthly, _policy.MonthlyKeep, pruned);
+    }
+
+    internal static string PartitionKey(BackupDescriptor backup)
+        => $"{backup.Manifest!.Hostname}|{string.Join('+', SourceGroups.SelectionOf(backup.Manifest))}";
 
     private void PromoteToWeekly(FolderTarget target, IReadOnlyList<BackupDescriptor> backups, List<string> promoted)
     {

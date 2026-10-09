@@ -7,7 +7,8 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
     // Each known Claude artefact has a list of candidate paths. We use the
     // FIRST one that looks accessible at discovery time. This matters for
     // the Store-installed Claude Desktop where %APPDATA%\Claude is a
-    // reparse point into %LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\...
+    // reparse point into %LOCALAPPDATA%\Packages\Claude_<publisherId>\...
+    // (matched by wildcard, so a different publisher id still resolves).
     // Some process contexts (e.g. a portable exe flagged with
     // Mark-of-the-Web after being downloaded / synced through OneDrive)
     // fail Directory.Exists on the reparse point even though the target
@@ -20,7 +21,7 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
             new[]
             {
                 @"%APPDATA%\Claude",
-                @"%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude",
+                @"%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude",
             },
             "Spec 1.1 + Store-app reparse fallback"
         ),
@@ -46,9 +47,47 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
             new[]
             {
                 @"%LOCALAPPDATA%\Claude",
-                @"%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Local\Claude",
+                @"%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Local\Claude",
             },
             "Spec 1.1 + Store-app reparse fallback"
+        ),
+        // OpenAI Codex. The CLI, the IDE extension and the Codex desktop
+        // app all share one state root: %CODEX_HOME%, defaulting to
+        // %USERPROFILE%\.codex (config.toml, AGENTS.md, sessions/,
+        // skills/, rules/, memories, sqlite state). Credentials and
+        // regenerable caches/binaries inside it are filtered by
+        // DefaultExclusions under the "codex/dotcodex" prefix.
+        (
+            "codexUserProfile",
+            new[]
+            {
+                @"%CODEX_HOME%",
+                @"%USERPROFILE%\.codex",
+            },
+            "Codex CLI/desktop state root, verified 2026-10-09"
+        ),
+        // Codex desktop (Electron, Store-packaged as OpenAI.Codex_<publisherId>).
+        // Same reparse-point story as Claude Desktop: %APPDATA%\Codex is
+        // redirected into the package's LocalCache. The package folder is
+        // matched by wildcard so a different publisher-id suffix still works.
+        (
+            "codexDesktopAppData",
+            new[]
+            {
+                @"%APPDATA%\Codex",
+                @"%LOCALAPPDATA%\Packages\OpenAI.Codex_*\LocalCache\Roaming\Codex",
+            },
+            "Codex desktop Store-app, verified 2026-10-09"
+        ),
+        // Cross-agent skill store. `npx skills add` installs skills here and
+        // links them into each agent's own folder (~\.claude\skills\<name>
+        // -> ~\.agents\skills\<name>), and Codex reads ~\.agents\skills as
+        // its user-level skills folder. Links are not followed during backup,
+        // so without this source those skills would be lost on a new machine.
+        (
+            "agentsUserProfile",
+            new[] { @"%USERPROFILE%\.agents" },
+            "Shared agent skills store (npx skills, Codex user skills)"
         ),
     ];
 
@@ -60,7 +99,11 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
                 string? first = null;
                 foreach (var rel in kp.Candidates)
                 {
-                    var expanded = Environment.ExpandEnvironmentVariables(rel);
+                    var expanded = ExpandCandidate(rel);
+                    if (expanded is null)
+                    {
+                        continue;
+                    }
                     first ??= expanded;
                     if (SafeDirectoryExists(expanded))
                     {
@@ -70,6 +113,46 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
                 return new DiscoveredClaudePath(kp.Key, first ?? string.Empty, false, kp.Source);
             })
             .ToList();
+    }
+
+    /// <summary>
+    /// Expand environment variables and resolve a single "Name_*" wildcard
+    /// segment (used for Store package folders). Returns null when the
+    /// candidate references an unset environment variable, so optional
+    /// overrides like %CODEX_HOME% are skipped instead of reported literally.
+    /// </summary>
+    internal static string? ExpandCandidate(string candidate)
+    {
+        var expanded = Environment.ExpandEnvironmentVariables(candidate);
+        if (expanded.Contains('%', StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var segments = expanded.Split(Path.DirectorySeparatorChar);
+        var wildcardIndex = Array.FindIndex(segments, s => s.Contains('*', StringComparison.Ordinal));
+        if (wildcardIndex <= 0)
+        {
+            return expanded;
+        }
+
+        // string.Join, not Path.Combine: Path.Combine("C:", "Users") yields
+        // the drive-relative "C:Users".
+        var parent = string.Join(Path.DirectorySeparatorChar, segments[..wildcardIndex]);
+        var tail = segments[(wildcardIndex + 1)..];
+        try
+        {
+            var match = Directory.Exists(parent)
+                ? Directory.EnumerateDirectories(parent, segments[wildcardIndex], SearchOption.TopDirectoryOnly)
+                    .Select(d => string.Join(Path.DirectorySeparatorChar, [d, .. tail]))
+                    .FirstOrDefault(SafeDirectoryExists)
+                : null;
+            return match ?? expanded;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return expanded;
+        }
     }
 
     private static bool SafeDirectoryExists(string path)

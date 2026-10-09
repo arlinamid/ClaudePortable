@@ -26,7 +26,7 @@ public sealed class TrayIcon : IDisposable
         _icon = new System.Windows.Forms.NotifyIcon
         {
             Icon = LoadAppIcon(),
-            Text = "ClaudePortable",
+            Text = "AgentPortable",
             Visible = true,
             ContextMenuStrip = _menu,
         };

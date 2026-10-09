@@ -69,7 +69,11 @@ public static class Program
         root.AddCommand(DiscoverCommand.Build());
         root.AddCommand(ScheduleCommand.Build());
         root.AddCommand(RotateCommand.Build());
-        return await root.InvokeAsync(args).ConfigureAwait(false);
+        // Handlers report failures through Environment.ExitCode; Main's
+        // return value would otherwise overwrite it with InvokeAsync's 0, so
+        // scripts and Task Scheduler saw every failed backup as a success.
+        var parseExit = await root.InvokeAsync(args).ConfigureAwait(false);
+        return parseExit != 0 ? parseExit : Environment.ExitCode;
     }
 
     private static void EnsureConsoleForCli()

@@ -1,12 +1,131 @@
 # Changelog
 
-All notable changes to ClaudePortable are documented here. Format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
-adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to AgentPortable (formerly ClaudePortable) are documented
+here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-09
+
+### Changed
+
+- **Renamed to AgentPortable.** Window title, tray icon, MSI product name,
+  Start-menu shortcut, release artifacts (`AgentPortable-<version>-portable.exe`
+  / `.msi`) and all UI/CLI texts (English + Hungarian) use the new name. For
+  upgrade compatibility the CLI stays `claudeportable.exe`, and the install
+  folder, `%LOCALAPPDATA%\ClaudePortable`, `<SyncClient>\ClaudePortable`,
+  `claude-backup_*.zip` and `ClaudePortable-Daily` task names are unchanged.
+  Tasks named `AgentPortable-*` are also recognised as managed.
+- **Links are recorded, not followed.** Junctions and directory symlinks
+  inside a backup source (e.g. `.claude\skills\x -> .agents\skills\x` from
+  `npx skills add`, or a skill junctioned to a git checkout) used to be
+  copied into the ZIP wholesale and restored as real folders, and a link
+  cycle could recurse until the path got too long. They are now stored in
+  the manifest's new `links` list and recreated after all folders are
+  restored: a junction for absolute local targets (no admin rights needed),
+  otherwise a symlink, with a warning and the exact `mklink /J` command when
+  the target does not exist on the restore machine. Folders matched by a
+  whole-subtree exclusion (`node_modules`, caches, ...) are now skipped
+  without being listed, which speeds up backups of large Cowork projects.
+- **Restore targets are resolved on the restore machine.** When Claude
+  Desktop, Claude Code, Codex or `.agents` already has a data folder there
+  (Store vs. non-Store install, custom `%CODEX_HOME%`, redirected AppData),
+  that folder is used instead of the backup machine's path.
+- The Claude Desktop Store package folder is matched as `Claude_*` instead of
+  one hard-coded publisher id, like `OpenAI.Codex_*`.
+
+- **Choose what to back up and restore.** Backups and restores can be
+  limited to source groups: `claude-desktop`, `cowork`, `claude-code` and
+  `codex` (aliases `claude`, `all`). The shared `.agents` skill store goes
+  with either agent.
+  - CLI: `--include` / `--skip` on `backup`, `restore`, `schedule install` and
+    `schedule emit`. The scheduled task stores the selection in its command
+    line.
+  - GUI: **What to back up** checkboxes on the Status page (saved in
+    `settings.json`, used by *Backup now* and the automatic backup task),
+    **What to restore** checkboxes on the Restore page, a **Contents** column
+    in both backup lists, and friendly source names on the Discovery page.
+  - Partial backups are tagged in the file name
+    (`..._<host>_codex_daily.zip`) and in the manifest (`groups`).
+  - Restore asks to close Codex (as it already did for Claude Desktop), but
+    only for apps whose data is actually being restored. The Claude Desktop
+    version check no longer blocks restores that skip Claude Desktop.
+
+- **Accessibility (WCAG 2.1 AA).**
+  - Headings are exposed as level-1 / level-2 headings.
+  - The status bar and Schedule status line are live regions.
+  - Text boxes, grids, lists, the language selector, the progress bar and
+    the ⋮ row button all have accessible names.
+  - Scheduled tasks gained a TYPE column, so managed / related / other is no
+    longer shown by colour alone.
+  - Read-only status columns show Yes / No instead of disabled check boxes.
+  - New `scripts/a11y-verify.ps1` checks the UI Automation tree of a running
+    build.
+
+### Fixed
+
+- **Screen readers could not see any page content.** The page area hid its
+  tab headers, and WPF's TabControl exposes pages to UI Automation only
+  through those headers. Narrator / NVDA saw the sidebar and nothing else.
+  The page area is now a `PageHost` that exposes the visible page directly,
+  and sidebar items are announced by their label instead of
+  "System.Windows.Controls.ListBoxItem".
+- **Contrast fixes.** Text box / combo box outlines went from 2.0:1 to
+  3.6:1 (`ControlBorderColor` `#8A877F`). The white label on the pressed
+  primary button went from 4.3:1 to 5.2:1. The primary button's focus ring
+  is drawn outside the coral fill (1.8:1 on the fill, 8.7:1 on the page).
+- **Retention could delete other machines' backups.** Rotation counted
+  every backup in a folder together, so two PCs syncing into the same
+  OneDrive folder pruned each other's backups (and partial backups would
+  have pruned full ones). Retention now rotates each machine and selection
+  separately.
+- **CLI exit codes were always 0.** Failures reported through
+  `Environment.ExitCode` were overwritten by `Main`'s return value, so
+  scripts and Task Scheduler saw failed backups and restores as successful.
+- **Claude Code's OAuth tokens were included in backups.**
+  `.claude\.credentials.json` is now excluded, as the README always promised,
+  and carried over from the safety backup on a same-machine restore.
+- Path rewriting on restore only swapped the user name inside `X:\Users\<name>`
+  paths. It now rewrites the whole backup-machine profile root, which the
+  manifest records as `userProfile`. Profiles on another drive or outside
+  `\Users` (`D:\Profiles\anna.CORP`) are therefore handled. A user name that
+  prefixes another one (`sam` / `samantha`) or contains a space is not
+  rewritten by mistake.
+- Manifests from older versions had `null` collections after loading,
+  because the JSON source generator assigns missing init-only properties.
+  For example, `archiveTargets` was null in pre-0.1.13 backups, which broke
+  restore. These collections now always load as empty.
+- Restore rejects ZIP entries that would be extracted outside the temp
+  folder (`../`, absolute paths).
+- Cowork project discovery now finds sessions through the same Store-app
+  reparse fallback as the main discovery, instead of assuming
+  `%APPDATA%\Claude` is readable.
+
 ### Added
+
+- **`%USERPROFILE%\.agents` backup** (`agents/dotagents`): the shared skill
+  store used by `npx skills` and read by Codex as its user skills folder.
+  Without it, linked skills would be lost on a new machine now that links
+  are no longer followed.
+
+- **Codex backup.** The OpenAI Codex state root (`%CODEX_HOME%`, default
+  `%USERPROFILE%\.codex`) is backed up under `codex/dotcodex`: `config.toml`,
+  `AGENTS.md`, sessions and archived sessions, skills, rules, agents,
+  memories, hooks, generated images and the sqlite state databases. The Codex
+  desktop app's data (`%APPDATA%\Codex`, Store package `OpenAI.Codex_*`) is
+  backed up under `codex-desktop/appdata`. Credentials (`auth.json`,
+  `.sandbox-secrets`), machine-bound sandbox identity, downloaded binaries
+  (`packages/`, `plugins/.plugin-appserver/`), logs, locks, caches and the
+  app's embedded browser profile are excluded.
+  - Restore refuses to start while Codex is running if the backup contains
+    Codex data, rewrites user-profile paths in `*.toml` (Codex
+    `config.toml`) as well as `*.json`, and on a same-machine restore copies
+    `auth.json` and the sandbox setup back from the safety backup so you stay
+    signed in.
+  - The post-restore checklist adds `codex login` steps; the Schedule view
+    flags tasks touching `.codex` as relevant.
+  - SQLite `*-shm` files are now excluded everywhere (always regenerated).
 
 - **Single-instance GUI.** A second launch of the window/tray app activates the
   already-running instance instead of starting another process. CLI commands

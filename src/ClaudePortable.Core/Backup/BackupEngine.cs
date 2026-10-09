@@ -40,33 +40,46 @@ public sealed class BackupEngine : IBackupEngine
 
         Directory.CreateDirectory(destination);
 
-        progress?.Report(new OperationProgress("Discovering Claude paths"));
-        var discovered = _pathDiscovery.Discover();
+        progress?.Report(new OperationProgress("Discovering agent paths"));
+        // Sources outside the selection are left out entirely: not backed
+        // up, not reported as missing, not recorded in the manifest.
+        var discovered = _pathDiscovery.Discover()
+            .Where(p => SourceGroups.IsSelected(SourceGroups.ForSourceKey(p.Key), request.Groups))
+            .ToList();
         var existingPaths = discovered.Where(p => p.Exists).ToList();
         var skippedPaths = discovered.Where(p => !p.Exists).ToList();
-        if (existingPaths.Count == 0)
+        var coworkSelected = SourceGroups.IsSelected([SourceGroups.Cowork], request.Groups);
+        if (existingPaths.Count == 0 && !coworkSelected)
         {
-            throw new InvalidOperationException(
-                "No Claude paths found on this machine. Nothing to back up.");
+            throw new InvalidOperationException(request.Groups is null
+                ? "No Claude or Codex paths found on this machine. Nothing to back up."
+                : $"Nothing to back up for the selected groups ({string.Join(", ", request.Groups)}) on this machine.");
         }
 
         // Cowork project folders (userSelectedFolders inside every Cowork
         // session's metadata). Each one becomes its own backup source with
         // archive prefix "cowork-projects/<hash>/".
         progress?.Report(new OperationProgress("Discovering Cowork projects"));
-        var coworkProjects = _coworkDiscovery.Discover();
+        var coworkProjects = coworkSelected
+            ? _coworkDiscovery.Discover()
+            : Array.Empty<CoworkProjectFolder>();
+        if (existingPaths.Count == 0 && coworkProjects.Count == 0)
+        {
+            throw new InvalidOperationException("No Cowork project folders found on this machine. Nothing to back up.");
+        }
 
         var exclusions = new ExclusionGlob(DefaultExclusions.Globs);
         var filesPerSource = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var archiveTargets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var entries = new List<ArchiveEntry>();
+        var links = new List<BackupLink>();
 
         foreach (var p in existingPaths)
         {
             progress?.Report(new OperationProgress($"Enumerating {p.Key}"));
             var before = entries.Count;
-            var archivePrefix = MapArchivePrefix(p.Key);
-            entries.AddRange(FileEnumerator.Enumerate(p.Path, archivePrefix, exclusions));
+            var archivePrefix = SourceLayout.PrefixFor(p.Key);
+            entries.AddRange(FileEnumerator.Enumerate(p.Path, archivePrefix, exclusions, links));
             filesPerSource[p.Key] = entries.Count - before;
             archiveTargets[archivePrefix] = p.Path;
         }
@@ -77,13 +90,13 @@ public sealed class BackupEngine : IBackupEngine
             var key = CoworkProjectKeyPrefix + project.Hash;
             var archivePrefix = CoworkProjectArchivePrefix + project.Hash;
             var before = entries.Count;
-            entries.AddRange(FileEnumerator.Enumerate(project.Path, archivePrefix, exclusions));
+            entries.AddRange(FileEnumerator.Enumerate(project.Path, archivePrefix, exclusions, links));
             filesPerSource[key] = entries.Count - before;
             archiveTargets[archivePrefix] = project.Path;
         }
 
         var createdAt = _clock.GetUtcNow();
-        var filename = BuildFilename(createdAt, request.Tier);
+        var filename = BuildFilename(createdAt, request.Tier, SourceGroups.FilenameTag(request.Groups));
         var zipPath = Path.Combine(destination, filename);
 
         // Compute approximate size + count BEFORE archive write so the
@@ -105,7 +118,9 @@ public sealed class BackupEngine : IBackupEngine
             fileCount: approxFileCount,
             claudeDesktopVersion: ClaudeDesktopVersionReader.TryRead(),
             coworkProjects: coworkProjects,
-            archiveTargets: archiveTargets);
+            archiveTargets: archiveTargets,
+            links: links,
+            groups: request.Groups);
 
         if (request.DryRun)
         {
@@ -161,20 +176,16 @@ public sealed class BackupEngine : IBackupEngine
         }
     }
 
-    private static string BuildFilename(DateTimeOffset timestamp, RetentionTier tier)
+    private static string BuildFilename(DateTimeOffset timestamp, RetentionTier tier, string? selectionTag)
     {
         var iso = timestamp.UtcDateTime.ToString("yyyy-MM-ddTHH-mm-ssZ", System.Globalization.CultureInfo.InvariantCulture);
         var tierLower = tier.ToString().ToLowerInvariant();
-        return $"claude-backup_{iso}_{Environment.MachineName}_{tierLower}.zip";
+        // Partial backups carry their selection so they are recognisable in
+        // the folder: claude-backup_<ts>_<host>_codex_daily.zip. The tier
+        // stays the last segment, which retention renames rely on.
+        var tag = selectionTag is null ? string.Empty : $"_{selectionTag}";
+        return $"claude-backup_{iso}_{Environment.MachineName}{tag}_{tierLower}.zip";
     }
-
-    private static string MapArchivePrefix(string key) => key switch
-    {
-        "claudeDesktopAppData" => "claude-desktop/appdata",
-        "claudeDesktopLocalAppData" => "claude-desktop/localappdata",
-        "claudeCodeUserProfile" => "claude-code/dotclaude",
-        _ => key,
-    };
 
     private static ArchiveEntry BuildChecklistEntry()
     {

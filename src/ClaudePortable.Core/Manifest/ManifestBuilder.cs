@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using ClaudePortable.Core.Abstractions;
+using ClaudePortable.Core.Archive;
 using ClaudePortable.Core.Discovery;
 
 namespace ClaudePortable.Core.Manifest;
@@ -19,7 +20,9 @@ public static class ManifestBuilder
         string sha256 = Sha256Placeholder,
         string? claudeDesktopVersion = null,
         IReadOnlyList<CoworkProjectFolder>? coworkProjects = null,
-        IReadOnlyDictionary<string, string>? archiveTargets = null)
+        IReadOnlyDictionary<string, string>? archiveTargets = null,
+        IReadOnlyList<BackupLink>? links = null,
+        IReadOnlySet<string>? groups = null)
     {
         var toolVersion = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
@@ -55,6 +58,9 @@ public static class ManifestBuilder
             Sha256 = sha256,
             ExcludedPaths = excludedGlobs,
             ToolVersion = toolVersion,
+            UserProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            Links = links ?? Array.Empty<BackupLink>(),
+            Groups = groups is null ? null : SourceGroups.All.Where(groups.Contains).ToList(),
         };
     }
 

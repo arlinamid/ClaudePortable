@@ -129,10 +129,54 @@ public class RetentionManagerTests : IDisposable
         Assert.True(monthly >= 1);
     }
 
-    private void WriteBackup(DateTimeOffset createdAt, RetentionTier tier)
+    [Fact]
+    public void Rotate_PartialBackupsNeverPruneFullOnes()
+    {
+        // Two full backups, then ten Codex-only ones: with a pooled count the
+        // Codex-only dailies would push both full backups out.
+        var baseDate = new DateTimeOffset(2026, 4, 1, 23, 0, 0, TimeSpan.Zero);
+        WriteBackup(baseDate, RetentionTier.Daily);
+        WriteBackup(baseDate.AddHours(1), RetentionTier.Daily);
+        for (var i = 1; i <= 10; i++)
+        {
+            WriteBackup(baseDate.AddDays(i), RetentionTier.Daily, groups: ["codex"]);
+        }
+
+        var policy = RetentionPolicy.Create(7, 0, 0, DayOfWeek.Sunday);
+        var manager = new RetentionManager(policy, new FakeClock(baseDate.AddDays(12)));
+        var report = manager.Rotate(new FolderTarget(_folder));
+
+        var remaining = new FolderTarget(_folder).ListBackups();
+        Assert.Equal(2, remaining.Count(b => b.Manifest!.Groups is null));
+        Assert.Equal(7, remaining.Count(b => b.Manifest!.Groups is not null));
+        Assert.Equal(3, report.Pruned.Count);
+    }
+
+    [Fact]
+    public void Rotate_KeepsEachMachineSeparately()
+    {
+        // Two PCs syncing into the same OneDrive folder.
+        var baseDate = new DateTimeOffset(2026, 4, 1, 23, 0, 0, TimeSpan.Zero);
+        for (var i = 0; i < 5; i++)
+        {
+            WriteBackup(baseDate.AddDays(i), RetentionTier.Daily, host: "LAPTOP");
+            WriteBackup(baseDate.AddDays(i).AddHours(1), RetentionTier.Daily, host: "DESKTOP");
+        }
+
+        var policy = RetentionPolicy.Create(3, 0, 0, DayOfWeek.Sunday);
+        var manager = new RetentionManager(policy, new FakeClock(baseDate.AddDays(6)));
+        manager.Rotate(new FolderTarget(_folder));
+
+        var remaining = new FolderTarget(_folder).ListBackups();
+        Assert.Equal(3, remaining.Count(b => b.Manifest!.Hostname == "LAPTOP"));
+        Assert.Equal(3, remaining.Count(b => b.Manifest!.Hostname == "DESKTOP"));
+    }
+
+    private void WriteBackup(DateTimeOffset createdAt, RetentionTier tier, string host = "HOST", IReadOnlyList<string>? groups = null)
     {
         var iso = createdAt.UtcDateTime.ToString("yyyy-MM-ddTHH-mm-ssZ", System.Globalization.CultureInfo.InvariantCulture);
-        var fileName = $"claude-backup_{iso}_HOST_{tier.ToString().ToLowerInvariant()}.zip";
+        var tag = groups is null ? string.Empty : "_" + string.Join('+', groups);
+        var fileName = $"claude-backup_{iso}_{host}{tag}_{tier.ToString().ToLowerInvariant()}.zip";
         var fullPath = Path.Combine(_folder, fileName);
 
         using var fs = File.Create(fullPath);
@@ -144,7 +188,8 @@ public class RetentionManagerTests : IDisposable
         var manifest = new BackupManifest
         {
             CreatedAt = createdAt,
-            Hostname = "HOST",
+            Hostname = host,
+            Groups = groups,
             WindowsUser = "tester",
             RetentionTier = tier,
             SourcePaths = new Dictionary<string, string>(),

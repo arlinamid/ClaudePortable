@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Automation.Peers;
 using System.Windows.Interop;
 using ClaudePortable.App.Localization;
 using ClaudePortable.App.Ui.Services;
@@ -17,8 +18,26 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        DataContext = new MainViewModel();
+        var vm = new MainViewModel();
+        DataContext = vm;
         SourceInitialized += OnSourceInitialized;
+
+        // Live regions (WCAG 4.1.3): LiveSetting on the TextBlock only marks it;
+        // screen readers announce a change once LiveRegionChanged is raised.
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.Status))
+            {
+                AnnounceLiveRegion(StatusText);
+            }
+        };
+        vm.ScheduledTasks.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ScheduledTasksViewModel.StatusLine))
+            {
+                AnnounceLiveRegion(ScheduleStatusText);
+            }
+        };
 
         LanguageBox.SelectedIndex = Loc.LanguageCode == Loc.Hungarian ? 1 : 0;
         _languageBoxReady = true;
@@ -54,6 +73,17 @@ public partial class MainWindow : Window
         menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
         menu.IsOpen = true;
         e.Handled = true;
+    }
+
+    private void AnnounceLiveRegion(UIElement element)
+    {
+        // After the binding has pushed the new text into the element.
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.DataBind, () =>
+        {
+            var peer = UIElementAutomationPeer.FromElement(element)
+                ?? UIElementAutomationPeer.CreatePeerForElement(element);
+            peer?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
+        });
     }
 
     public void ShowAndActivate()

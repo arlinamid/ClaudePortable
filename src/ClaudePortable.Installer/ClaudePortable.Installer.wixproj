@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Package</OutputType>
-    <OutputName>ClaudePortable-$(InstallerVersion)</OutputName>
+    <OutputName>AgentPortable-$(InstallerVersion)</OutputName>
     <InstallerVersion Condition="'$(InstallerVersion)' == ''">0.1.0</InstallerVersion>
     <InstallerPlatform>x64</InstallerPlatform>
     <PublishStageDir Condition="'$(PublishStageDir)' == ''">$(MSBuildProjectDirectory)\staging</PublishStageDir>

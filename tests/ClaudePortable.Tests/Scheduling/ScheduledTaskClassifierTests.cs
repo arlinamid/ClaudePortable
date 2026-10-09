@@ -9,6 +9,7 @@ public class ScheduledTaskClassifierTests
     [InlineData("ClaudePortable", "anyone", "", "", ManagedBy.ClaudePortable)]
     [InlineData("ClaudePortable-Weekly", "x", "", "", ManagedBy.ClaudePortable)]
     [InlineData("SomeTask", "ClaudePortable installer", "", "", ManagedBy.ClaudePortable)]
+    [InlineData("AgentPortable-Daily", "x", "", "", ManagedBy.ClaudePortable)]
     public void Classify_RecognisesClaudePortableManagedTasks(
         string name, string author, string exe, string args, ManagedBy expected)
     {
@@ -25,6 +26,8 @@ public class ScheduledTaskClassifierTests
         @"C:\Tools\sync.exe", "--source anthropic --dest cloud")]
     [InlineData("BackupTask", "ops", "robocopy.exe",
         @"%APPDATA%\Claude\ \\nas\backup")]
+    [InlineData("CodexSync", "user", "robocopy.exe",
+        @"C:\Users\X\.codex D:\backup\codex /MIR")]
     public void Classify_RecognisesForeignRelevantTasks(string name, string author, string exe, string args)
     {
         var info = NewInfo(name, author, exe, args);

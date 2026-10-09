@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:ClaudePortable.App.Ui.Converters"
         xmlns:loc="clr-namespace:ClaudePortable.App.Localization"
-        Title="ClaudePortable"
+        xmlns:views="clr-namespace:ClaudePortable.App.Ui.Views"
+        Title="AgentPortable"
         Icon="pack://application:,,,/Assets/app.ico"
         Width="1120" Height="720"
         MinWidth="820" MinHeight="520"
@@ -17,6 +18,7 @@
     <Window.Resources>
         <conv:ManagedByToBrushConverter x:Key="ManagedByToBrush" />
         <conv:StringToVisibleConverter x:Key="StringToVisible" />
+        <conv:BoolToYesNoConverter x:Key="BoolToYesNo" />
     </Window.Resources>
     <DockPanel Background="#262624">
 
@@ -28,12 +30,14 @@
                 </ItemsPanelTemplate>
             </StatusBar.ItemsPanel>
             <StatusBarItem DockPanel.Dock="Left">
-                <TextBlock Text="{Binding Status}" />
+                <TextBlock x:Name="StatusText" Text="{Binding Status}"
+                           AutomationProperties.LiveSetting="Polite" />
             </StatusBarItem>
             <StatusBarItem DockPanel.Dock="Right" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisible}}" Margin="16,0,0,0">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="{Binding ProgressMessage}" Foreground="#D6D3C9" VerticalAlignment="Center" Margin="0,0,12,0" />
                     <ProgressBar Width="220" Height="6"
+                                 AutomationProperties.Name="{Binding ProgressMessage}"
                                  Value="{Binding ProgressValue, Mode=OneWay}"
                                  Minimum="0" Maximum="1"
                                  IsIndeterminate="{Binding ProgressIsIndeterminate}"
@@ -55,7 +59,7 @@
                 <StackPanel Grid.Row="0">
                     <StackPanel Orientation="Horizontal" Margin="20,24,20,0">
                         <Rectangle Width="22" Height="22" RadiusX="5" RadiusY="5" Fill="{DynamicResource AccentBrush}" />
-                        <TextBlock Text="ClaudePortable" Margin="10,0,0,0" FontSize="15" FontWeight="SemiBold"
+                        <TextBlock Text="AgentPortable" Margin="10,0,0,0" FontSize="15" FontWeight="SemiBold"
                                    VerticalAlignment="Center" />
                     </StackPanel>
                     <TextBlock Style="{DynamicResource SidebarVersion}" Text="{Binding AppVersionLabel}" />
@@ -63,40 +67,41 @@
 
                 <!-- Nav -->
                 <ListBox x:Name="Nav" Grid.Row="1"
+                         AutomationProperties.Name="{loc:Loc A11y_Navigation}"
                          Style="{DynamicResource SidebarNav}"
                          ItemContainerStyle="{DynamicResource NavItem}"
                          SelectedIndex="0">
-                    <ListBoxItem>
+                    <ListBoxItem AutomationProperties.Name="{loc:Loc Nav_Status}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{DynamicResource NavGlyph}" Text="&#xE9D9;" />
                             <TextBlock Style="{DynamicResource NavLabel}" Text="{loc:Loc Nav_Status}" />
                         </StackPanel>
                     </ListBoxItem>
-                    <ListBoxItem>
+                    <ListBoxItem AutomationProperties.Name="{loc:Loc Nav_Targets}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{DynamicResource NavGlyph}" Text="&#xE8B7;" />
                             <TextBlock Style="{DynamicResource NavLabel}" Text="{loc:Loc Nav_Targets}" />
                         </StackPanel>
                     </ListBoxItem>
-                    <ListBoxItem>
+                    <ListBoxItem AutomationProperties.Name="{loc:Loc Nav_Discovery}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{DynamicResource NavGlyph}" Text="&#xE721;" />
                             <TextBlock Style="{DynamicResource NavLabel}" Text="{loc:Loc Nav_Discovery}" />
                         </StackPanel>
                     </ListBoxItem>
-                    <ListBoxItem>
+                    <ListBoxItem AutomationProperties.Name="{loc:Loc Nav_Restore}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{DynamicResource NavGlyph}" Text="&#xE7A7;" />
                             <TextBlock Style="{DynamicResource NavLabel}" Text="{loc:Loc Nav_Restore}" />
                         </StackPanel>
                     </ListBoxItem>
-                    <ListBoxItem>
+                    <ListBoxItem AutomationProperties.Name="{loc:Loc Nav_Logs}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{DynamicResource NavGlyph}" Text="&#xE9F9;" />
                             <TextBlock Style="{DynamicResource NavLabel}" Text="{loc:Loc Nav_Logs}" />
                         </StackPanel>
                     </ListBoxItem>
-                    <ListBoxItem>
+                    <ListBoxItem AutomationProperties.Name="{loc:Loc Nav_Schedule}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{DynamicResource NavGlyph}" Text="&#xE787;" />
                             <TextBlock Style="{DynamicResource NavLabel}" Text="{loc:Loc Nav_Schedule}" />
@@ -107,6 +112,7 @@
                 <!-- Footer: language switch + always-visible primary action -->
                 <StackPanel Grid.Row="2" Margin="16,8,16,20">
                     <ComboBox x:Name="LanguageBox"
+                              AutomationProperties.Name="{loc:Loc A11y_Language}"
                               Style="{DynamicResource DarkCombo}"
                               Margin="0,0,0,10"
                               SelectionChanged="OnLanguageSelectionChanged">
@@ -125,12 +131,13 @@
         <Border DockPanel.Dock="Left" Width="1" Background="{DynamicResource BorderBrush}" />
 
         <!-- Main content area, driven by sidebar -->
-        <TabControl Style="{DynamicResource HiddenTabs}" SelectedIndex="{Binding ElementName=Nav, Path=SelectedIndex}">
+        <views:PageHost Style="{DynamicResource HiddenTabs}" SelectedIndex="{Binding ElementName=Nav, Path=SelectedIndex}">
 
             <!-- 1. Status / Dashboard -->
             <TabItem>
                 <Grid Margin="32,24,32,24">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -166,20 +173,49 @@
                         </Border>
                     </UniformGrid>
 
-                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,12">
+                    <!-- What to back up: used by Backup now and the scheduled task -->
+                    <Border Style="{DynamicResource Card}" Grid.Row="3" Margin="0,0,0,20">
+                        <StackPanel>
+                            <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Status_WhatToBackUp}" />
+                            <StackPanel Margin="0,6,0,0">
+                                <ItemsControl ItemsSource="{Binding BackupGroups}" AutomationProperties.Name="{loc:Loc Status_WhatToBackUp}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsChecked}"
+                                                      Content="{Binding Label}"
+                                                      ToolTip="{Binding Hint}"
+                                                      AutomationProperties.HelpText="{Binding Hint}"
+                                                      Foreground="#D6D3C9"
+                                                      Margin="0,4,24,4" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                            <TextBlock Style="{DynamicResource Muted}" Text="{loc:Loc Status_WhatToBackUpHint}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,12">
                         <TextBlock Style="{DynamicResource H2}" Text="{loc:Loc Status_RecentBackups}" VerticalAlignment="Center" />
                         <Button Content="{loc:Loc Common_Refresh}"
                                 Command="{Binding RefreshCommand}"
                                 HorizontalAlignment="Right" Margin="16,0,0,8" />
                     </StackPanel>
 
-                    <DataGrid Grid.Row="4"
+                    <DataGrid Grid.Row="5"
+                              AutomationProperties.Name="{loc:Loc Status_RecentBackups}"
                               ItemsSource="{Binding Backups}"
                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="{loc:Loc Grid_Tier}" Binding="{Binding Manifest.RetentionTier}" Width="Auto" />
                             <DataGridTextColumn Header="{loc:Loc Grid_Created}" Binding="{Binding Manifest.CreatedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="Auto" />
                             <DataGridTextColumn Header="{loc:Loc Grid_Hostname}" Binding="{Binding Manifest.Hostname}" Width="Auto" />
+                            <DataGridTextColumn Header="{loc:Loc Grid_Contents}" Binding="{Binding ContentsLabel}" Width="Auto" />
                             <DataGridTextColumn Header="{loc:Loc Grid_Size}" Binding="{Binding SizeBytes, StringFormat=N0}" Width="Auto" />
                             <DataGridTextColumn Header="{loc:Loc Grid_File}" Binding="{Binding FileName}" Width="*" />
                         </DataGrid.Columns>
@@ -218,7 +254,7 @@
                     </StackPanel>
 
                     <Border Style="{DynamicResource Card}" Padding="0" Grid.Row="3">
-                        <DataGrid ItemsSource="{Binding Targets}" SelectedItem="{Binding SelectedTarget}"
+                        <DataGrid AutomationProperties.Name="{loc:Loc Nav_Targets}" ItemsSource="{Binding Targets}" SelectedItem="{Binding SelectedTarget}"
                                   AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="{loc:Loc Grid_Path}" Binding="{Binding Path}" Width="*" />
@@ -245,24 +281,25 @@
 
                     <TextBlock Style="{DynamicResource H2}" Text="{loc:Loc Discovery_ClaudePaths}" Grid.Row="2" Margin="0,0,0,8" />
                     <Border Style="{DynamicResource Card}" Padding="0" Grid.Row="3">
-                        <DataGrid ItemsSource="{Binding ClaudePaths}"
+                        <DataGrid AutomationProperties.Name="{loc:Loc Discovery_ClaudePaths}" ItemsSource="{Binding ClaudePaths}"
                                   AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                             <DataGrid.Columns>
+                                <DataGridTextColumn Header="{loc:Loc Grid_Source}" Binding="{Binding Label}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_Key}" Binding="{Binding Key}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_Path}" Binding="{Binding Path}" Width="*" />
-                                <DataGridCheckBoxColumn Header="{loc:Loc Grid_Exists}" Binding="{Binding Exists}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Exists}" Binding="{Binding Exists, Converter={StaticResource BoolToYesNo}}" Width="Auto" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
 
                     <TextBlock Style="{DynamicResource H2}" Text="{loc:Loc Discovery_SyncClients}" Grid.Row="4" Margin="0,20,0,8" />
                     <Border Style="{DynamicResource Card}" Padding="0" Grid.Row="5">
-                        <DataGrid ItemsSource="{Binding SyncClients}"
+                        <DataGrid AutomationProperties.Name="{loc:Loc Discovery_SyncClients}" ItemsSource="{Binding SyncClients}"
                                   AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="{loc:Loc Grid_Name}" Binding="{Binding Name}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_Path}" Binding="{Binding Path}" Width="*" />
-                                <DataGridCheckBoxColumn Header="{loc:Loc Grid_Avail}" Binding="{Binding IsAvailable}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Avail}" Binding="{Binding IsAvailable, Converter={StaticResource BoolToYesNo}}" Width="Auto" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
@@ -279,6 +316,7 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <TextBlock Style="{DynamicResource H1}" Text="{loc:Loc Nav_Restore}" />
@@ -287,19 +325,46 @@
                     <TextBlock Style="{DynamicResource H2}" Text="{loc:Loc Restore_AvailableSnapshots}" Grid.Row="2" />
 
                     <Border Style="{DynamicResource Card}" Padding="0" Grid.Row="3">
-                        <DataGrid ItemsSource="{Binding Backups}" SelectedItem="{Binding SelectedBackup}"
+                        <DataGrid AutomationProperties.Name="{loc:Loc Restore_AvailableSnapshots}" ItemsSource="{Binding Backups}" SelectedItem="{Binding SelectedBackup}"
                                   AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="{loc:Loc Grid_Status}" Binding="{Binding StatusLabel}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_Tier}" Binding="{Binding Manifest.RetentionTier}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_Created}" Binding="{Binding Manifest.CreatedAt, StringFormat=yyyy-MM-dd HH:mm}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_Hostname}" Binding="{Binding Manifest.Hostname}" Width="Auto" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_Contents}" Binding="{Binding ContentsLabel}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_File}" Binding="{Binding FileName}" Width="*" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0" Grid.Row="4">
+                    <Border Style="{DynamicResource Card}" Grid.Row="4" Margin="0,16,0,0">
+                        <StackPanel>
+                            <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Restore_WhatToRestore}" />
+                            <StackPanel Margin="0,6,0,0">
+                                <ItemsControl ItemsSource="{Binding RestoreGroups}" AutomationProperties.Name="{loc:Loc Restore_WhatToRestore}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsChecked}"
+                                                      Content="{Binding Label}"
+                                                      ToolTip="{Binding Hint}"
+                                                      AutomationProperties.HelpText="{Binding Hint}"
+                                                      Foreground="#D6D3C9"
+                                                      Margin="0,4,24,4" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                            <TextBlock Style="{DynamicResource Muted}" Text="{loc:Loc Restore_WhatToRestoreHint}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0" Grid.Row="5">
                         <Button Content="{loc:Loc Restore_RestoreSelected}"
                                 Style="{DynamicResource PrimaryButton}"
                                 Command="{Binding RestoreCommand}"
@@ -312,7 +377,7 @@
                                 Visibility="{Binding PostRestoreChecklistPath, Converter={StaticResource StringToVisible}}" />
                     </StackPanel>
 
-                    <Expander Grid.Row="5" Margin="0,16,0,0"
+                    <Expander Grid.Row="6" Margin="0,16,0,0"
                               Foreground="#D6D3C9"
                               Header="{loc:Loc Restore_AdvancedOptions}"
                               FontSize="13"
@@ -327,6 +392,7 @@
                                             Command="{Binding PickTargetProfileCommand}"
                                             Margin="8,0,0,0" />
                                     <TextBox Text="{Binding TargetUserProfileOverride, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.Name="{loc:Loc Restore_TargetUserProfile}"
                                              Style="{DynamicResource DarkTextBox}"
                                              FontFamily="{DynamicResource MonoFont}" />
                                 </DockPanel>
@@ -358,7 +424,7 @@
                     <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Logs_Caption}" Margin="0,0,0,20" Grid.Row="1" />
 
                     <Border Style="{DynamicResource Card}" Grid.Row="2">
-                        <ListBox ItemsSource="{Binding LogEntries}" />
+                        <ListBox AutomationProperties.Name="{loc:Loc Nav_Logs}" ItemsSource="{Binding LogEntries}" />
                     </Border>
                 </Grid>
             </TabItem>
@@ -387,6 +453,7 @@
                                     <TextBlock Text="{loc:Loc Schedule_AtLabel}" Foreground="#D6D3C9" Margin="0,0,0,4" />
                                     <TextBox Style="{DynamicResource DarkTextBox}"
                                              Text="{Binding InstallTime, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.Name="{loc:Loc Schedule_AtLabel}"
                                              Width="90"
                                              FontFamily="{DynamicResource MonoFont}" />
                                 </StackPanel>
@@ -394,6 +461,7 @@
                                     <TextBlock Text="{loc:Loc Schedule_TaskNameLabel}" Foreground="#D6D3C9" Margin="0,0,0,4" />
                                     <TextBox Style="{DynamicResource DarkTextBox}"
                                              Text="{Binding InstallTaskName, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.Name="{loc:Loc Schedule_TaskNameLabel}"
                                              Width="220"
                                              FontFamily="{DynamicResource MonoFont}" />
                                 </StackPanel>
@@ -430,12 +498,13 @@
                                          IsChecked="{Binding IsFilterAll, Mode=TwoWay}"
                                          Foreground="#D6D3C9" VerticalAlignment="Center" />
                         </StackPanel>
-                        <TextBlock Style="{DynamicResource Muted}" Text="{Binding StatusLine}"
+                        <TextBlock x:Name="ScheduleStatusText" Style="{DynamicResource Muted}" Text="{Binding StatusLine}"
+                                   AutomationProperties.LiveSetting="Polite"
                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                     </DockPanel>
 
                     <Border Style="{DynamicResource Card}" Padding="0" Grid.Row="4">
-                        <DataGrid ItemsSource="{Binding Tasks}"
+                        <DataGrid AutomationProperties.Name="{loc:Loc A11y_ScheduledTasks}" ItemsSource="{Binding Tasks}"
                                   AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
                                   RowHeight="40"
                                   FrozenColumnCount="2"
@@ -447,7 +516,8 @@
                                             <Border Width="10" Height="10" CornerRadius="5"
                                                     VerticalAlignment="Center" HorizontalAlignment="Center"
                                                     Background="{Binding ManagedBy, Converter={StaticResource ManagedByToBrush}}"
-                                                    ToolTip="{Binding ManagedByLabel}" />
+                                                    ToolTip="{Binding ManagedByLabel}"
+                                                    AutomationProperties.Name="{Binding ManagedByLabel}" />
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -457,6 +527,7 @@
                                         <DataTemplate>
                                             <Button Content="⋮"
                                                     ToolTip="{loc:Loc Schedule_RowActions}"
+                                                    AutomationProperties.Name="{loc:Loc Schedule_RowActions}"
                                                     Padding="8,2"
                                                     FontSize="16"
                                                     FontWeight="Bold"
@@ -478,6 +549,7 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="{loc:Loc Grid_Name}" Binding="{Binding FullName}" Width="*" MinWidth="120" />
+                                <DataGridTextColumn Header="{loc:Loc Grid_ManagedBy}" Binding="{Binding ManagedByLabel}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_State}" Binding="{Binding State}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_Schedule}" Binding="{Binding TriggerSummary}" Width="Auto" />
                                 <DataGridTextColumn Header="{loc:Loc Grid_Next}" Binding="{Binding NextRunDisplay}" Width="Auto" />
@@ -488,7 +560,7 @@
                     </Border>
                 </Grid>
             </TabItem>
-        </TabControl>
+        </views:PageHost>
 
     </DockPanel>
 </Window>

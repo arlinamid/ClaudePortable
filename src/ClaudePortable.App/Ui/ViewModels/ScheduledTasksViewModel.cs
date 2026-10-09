@@ -52,6 +52,9 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
     /// wired by MainViewModel to the active (top) target folder.</summary>
     public Func<string?>? ActiveTargetProvider { get; set; }
 
+    /// <summary>The "What to back up" selection from the Status page; null = everything.</summary>
+    public Func<IReadOnlySet<string>?>? BackupGroupsProvider { get; set; }
+
     private string _installTime = "23:00";
 
     public string InstallTime
@@ -94,10 +97,11 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
         {
             var exe = Environment.ProcessPath
                 ?? throw new InvalidOperationException("Could not determine current executable path.");
+            var groups = BackupGroupsProvider?.Invoke();
             var spec = new ScheduleSpec(
                 TaskName: taskName,
                 ExecutablePath: exe,
-                Arguments: new[] { "backup", "--to", targetFolder },
+                Arguments: ["backup", "--to", targetFolder, .. ClaudePortable.App.Commands.GroupOptions.ToArguments(groups)],
                 DailyStart: at,
                 Description: Loc.F("Cli_Schedule_TaskDescription", targetFolder));
 
@@ -118,7 +122,9 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
             }
 
             StatusLine = Loc.F("Schedule_InstallOk", taskName, at.ToString("HH:mm", CultureInfo.InvariantCulture));
-            UiLogSink.Instance.Append($"schedule install: '{taskName}' daily at {at:HH:mm} -> {targetFolder}");
+            UiLogSink.Instance.Append(groups is null
+                ? $"schedule install: '{taskName}' daily at {at:HH:mm} -> {targetFolder}"
+                : $"schedule install: '{taskName}' daily at {at:HH:mm} ({string.Join(", ", groups)}) -> {targetFolder}");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {

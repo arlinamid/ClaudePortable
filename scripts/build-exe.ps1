@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Build a portable single-file self-contained ClaudePortable.exe.
+    Build a portable single-file self-contained AgentPortable exe.
     No installer, no admin needed - double-click and it runs.
 
     The exe bundles the .NET 10 Windows Desktop runtime plus WPF native
@@ -15,11 +15,11 @@
     Debug or Release (default Release).
 
 .EXAMPLE
-    pwsh .\build-exe.ps1 -Version 0.3.2
+    pwsh .\build-exe.ps1 -Version 0.4.0
 #>
 
 param(
-  [string] $Version = "0.3.2",
+  [string] $Version = "0.4.0",
   [string] $Configuration = "Release"
 )
 
@@ -27,7 +27,7 @@ $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $appCsproj = Join-Path $root "src\ClaudePortable.App\ClaudePortable.App.csproj"
 $outDir = Join-Path $root "dist\portable"
-$finalExeName = "ClaudePortable-$Version-portable.exe"
+$finalExeName = "AgentPortable-$Version-portable.exe"
 $finalExe = Join-Path $root $finalExeName
 
 Write-Host "[1/3] Cleaning dist\portable..." -ForegroundColor Cyan

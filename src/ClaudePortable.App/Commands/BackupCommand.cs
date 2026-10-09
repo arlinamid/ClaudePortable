@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.Globalization;
 using System.Runtime.Versioning;
 using ClaudePortable.App.Localization;
+using ClaudePortable.Core.Abstractions;
 using ClaudePortable.Core.Archive;
 using ClaudePortable.Core.Backup;
 using ClaudePortable.Core.Discovery;
@@ -38,16 +39,26 @@ public static class BackupCommand
             description: Loc.T("Cli_Backup_NoRotate"),
             getDefaultValue: () => false);
 
+        var includeOption = GroupOptions.CreateInclude();
+        var skipOption = GroupOptions.CreateSkip();
+
         var cmd = new Command("backup", Loc.T("Cli_Backup_Desc"))
         {
             toOption,
             tierOption,
             dryRunOption,
             noRotateOption,
+            includeOption,
+            skipOption,
         };
 
-        cmd.SetHandler(async (toValue, tier, dryRun, noRotate) =>
+        cmd.SetHandler(async (toValue, tier, dryRun, noRotate, include, skip) =>
         {
+            if (!GroupOptions.TryResolve(include, skip, out var groups))
+            {
+                return;
+            }
+
             var target = new FolderTarget(toValue.FullName);
             try
             {
@@ -66,7 +77,17 @@ public static class BackupCommand
             }
 
             var engine = new BackupEngine(new WindowsPathDiscovery(), new ZipArchiveWriter());
-            var outcome = await engine.CreateBackupAsync(new(target.FolderPath, tier, dryRun)).ConfigureAwait(false);
+            BackupOutcome outcome;
+            try
+            {
+                outcome = await engine.CreateBackupAsync(new(target.FolderPath, tier, dryRun, groups)).ConfigureAwait(false);
+            }
+            catch (InvalidOperationException ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+                Environment.ExitCode = 2;
+                return;
+            }
 
             if (dryRun)
             {
@@ -75,6 +96,10 @@ public static class BackupCommand
                 foreach (var (key, cnt) in outcome.FilesPerSource)
                 {
                     Console.WriteLine(Loc.F("Cli_Backup_DryRunSource", key, cnt));
+                }
+                foreach (var link in outcome.Manifest.Links)
+                {
+                    Console.WriteLine(Loc.F("Cli_Backup_Link", link.Path, link.Target));
                 }
                 foreach (var skipped in outcome.SkippedPaths)
                 {
@@ -90,6 +115,10 @@ public static class BackupCommand
             foreach (var (key, cnt) in outcome.FilesPerSource)
             {
                 Console.WriteLine(Loc.F("Cli_Backup_PerSource", key, cnt));
+            }
+            foreach (var link in outcome.Manifest.Links)
+            {
+                Console.WriteLine(Loc.F("Cli_Backup_Link", link.Path, link.Target));
             }
             foreach (var skipped in outcome.SkippedPaths)
             {
@@ -121,7 +150,7 @@ public static class BackupCommand
             {
                 Console.Error.WriteLine(Loc.F("Cli_Rotation_Failed", ex.Message));
             }
-        }, toOption, tierOption, dryRunOption, noRotateOption);
+        }, toOption, tierOption, dryRunOption, noRotateOption, includeOption, skipOption);
 
         return cmd;
     }
