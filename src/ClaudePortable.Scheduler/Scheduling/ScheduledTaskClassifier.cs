@@ -13,6 +13,9 @@ public static class ScheduledTaskClassifier
         "local-agent-mode-sessions",
         "claude-desktop",
         "anthropic",
+        "AgentPortable",
+        ".codex",
+        "OpenAI.Codex_",
     };
 
     public static ManagedBy Classify(ScheduledTaskInfo info)

@@ -25,6 +25,8 @@ public class ScheduledTaskClassifierTests
         @"C:\Tools\sync.exe", "--source anthropic --dest cloud")]
     [InlineData("BackupTask", "ops", "robocopy.exe",
         @"%APPDATA%\Claude\ \\nas\backup")]
+    [InlineData("CodexSync", "user", "robocopy.exe",
+        @"C:\Users\X\.codex D:\backup\codex /MIR")]
     public void Classify_RecognisesForeignRelevantTasks(string name, string author, string exe, string args)
     {
         var info = NewInfo(name, author, exe, args);

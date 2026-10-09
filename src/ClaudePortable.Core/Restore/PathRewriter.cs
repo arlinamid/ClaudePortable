@@ -39,7 +39,11 @@ public sealed class PathRewriter : IPathRewriter
         var oldUserName = Path.GetFileName(oldUserProfile.TrimEnd('\\', '/'));
         var newUserName = Path.GetFileName(newUserProfile.TrimEnd('\\', '/'));
 
-        foreach (var file in Directory.EnumerateFiles(rootFolder, "*.json", SearchOption.AllDirectories))
+        // *.toml covers Codex's config.toml, whose [projects."C:\Users\..."]
+        // trust entries and MCP server paths are user-profile absolute.
+        var candidates = Directory.EnumerateFiles(rootFolder, "*.json", SearchOption.AllDirectories)
+            .Concat(Directory.EnumerateFiles(rootFolder, "*.toml", SearchOption.AllDirectories));
+        foreach (var file in candidates)
         {
             filesScanned++;
             string content;

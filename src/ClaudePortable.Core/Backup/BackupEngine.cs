@@ -40,14 +40,14 @@ public sealed class BackupEngine : IBackupEngine
 
         Directory.CreateDirectory(destination);
 
-        progress?.Report(new OperationProgress("Discovering Claude paths"));
+        progress?.Report(new OperationProgress("Discovering agent paths"));
         var discovered = _pathDiscovery.Discover();
         var existingPaths = discovered.Where(p => p.Exists).ToList();
         var skippedPaths = discovered.Where(p => !p.Exists).ToList();
         if (existingPaths.Count == 0)
         {
             throw new InvalidOperationException(
-                "No Claude paths found on this machine. Nothing to back up.");
+                "No Claude or Codex paths found on this machine. Nothing to back up.");
         }
 
         // Cowork project folders (userSelectedFolders inside every Cowork
@@ -173,6 +173,8 @@ public sealed class BackupEngine : IBackupEngine
         "claudeDesktopAppData" => "claude-desktop/appdata",
         "claudeDesktopLocalAppData" => "claude-desktop/localappdata",
         "claudeCodeUserProfile" => "claude-code/dotclaude",
+        "codexUserProfile" => "codex/dotcodex",
+        "codexDesktopAppData" => "codex-desktop/appdata",
         _ => key,
     };
 

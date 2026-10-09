@@ -97,26 +97,29 @@ public class PathRewriterTests
     }
 
     [Fact]
-    public void Rewrite_ProcessesOnlyJsonFiles()
+    public void Rewrite_ProcessesOnlyJsonAndTomlFiles()
     {
         var root = Path.Combine(Path.GetTempPath(), $"cp-rewriter-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
         try
         {
             var jsonPath = Path.Combine(root, "config.json");
+            var tomlPath = Path.Combine(root, "config.toml");
             var mdPath = Path.Combine(root, "notes.md");
             File.WriteAllText(jsonPath, @"{""p"":""C:\\Users\\Alice\\.claude""}");
+            File.WriteAllText(tomlPath, @"command = 'C:\Users\Alice\.local\bin\tool.exe'");
             File.WriteAllText(mdPath, @"See C:\Users\Alice\.claude for settings.");
 
             var rewriter = new PathRewriter();
             var result = rewriter.Rewrite(root, @"C:\Users\Alice", @"C:\Users\Bob");
 
-            Assert.Equal(1, result.FilesScanned);
-            Assert.Equal(1, result.FilesChanged);
-            Assert.True(result.ReplacementsMade >= 1);
+            Assert.Equal(2, result.FilesScanned);
+            Assert.Equal(2, result.FilesChanged);
+            Assert.True(result.ReplacementsMade >= 2);
 
             var rewritten = File.ReadAllText(jsonPath);
             Assert.Contains("Bob", rewritten, StringComparison.Ordinal);
+            Assert.Contains(@"C:\Users\Bob\.local", File.ReadAllText(tomlPath), StringComparison.Ordinal);
             var unchanged = File.ReadAllText(mdPath);
             Assert.Contains("Alice", unchanged, StringComparison.Ordinal);
         }
