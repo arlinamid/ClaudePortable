@@ -257,7 +257,7 @@ CI runs the same commands on `windows-latest` via `.github/workflows/ci.yml`. Th
 Local portable-exe build:
 
 ```powershell
-pwsh scripts/build-exe.ps1 -Version 0.2.0
+pwsh scripts/build-exe.ps1 -Version 0.4.0
 ```
 
 Local MSI build (needs the WiX dotnet tool):
@@ -265,7 +265,7 @@ Local MSI build (needs the WiX dotnet tool):
 ```powershell
 dotnet tool install --global wix --version 7.0.0
 wix eula accept wix7
-pwsh src/ClaudePortable.Installer/build-msi.ps1 -Version 0.2.0
+pwsh src/ClaudePortable.Installer/build-msi.ps1 -Version 0.4.0
 ```
 
 ## Known limitations

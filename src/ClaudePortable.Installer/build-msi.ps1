@@ -10,7 +10,7 @@
 #   pwsh .\build-msi.ps1 [-Version 0.1.0] [-Configuration Release]
 
 param(
-  [string] $Version = "0.3.2",
+  [string] $Version = "0.4.0",
   [string] $Configuration = "Release"
 )
 
@@ -31,6 +31,9 @@ dotnet publish $appCsproj `
   --self-contained true `
   -p:PublishSingleFile=false `
   -p:InvariantGlobalization=false `
+  -p:AssemblyVersion=$Version.0 `
+  -p:FileVersion=$Version.0 `
+  -p:InformationalVersion=$Version `
   --output $staging
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 
@@ -41,8 +44,12 @@ dotnet build $installerCsproj `
   -p:PublishStageDir=$staging
 if ($LASTEXITCODE -ne 0) { throw "dotnet build wixproj failed" }
 
-$builtMsi = Get-ChildItem -Path (Join-Path $root "src\ClaudePortable.Installer\bin\$Configuration") -Filter "*.msi" -Recurse | Select-Object -First 1
-if (-not $builtMsi) { throw "MSI not found in bin output" }
+# Match this version's file exactly: bin can still hold MSIs from earlier
+# builds (incl. the pre-rename ClaudePortable-*.msi), and "first *.msi"
+# could pick one of those.
+$builtMsi = Get-ChildItem -Path (Join-Path $root "src\ClaudePortable.Installer\bin\$Configuration") -Filter $outputMsi -Recurse |
+  Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if (-not $builtMsi) { throw "$outputMsi not found in bin output" }
 
 $target = Join-Path $root $outputMsi
 Copy-Item $builtMsi.FullName $target -Force
