@@ -10,6 +10,25 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+- **Codex could not resume conversations after restoring onto a different
+  user profile** (e.g. laptop `C:\Users\Janos` -> desktop
+  `C:\Users\János`). The error was "failed to resolve rollout path
+  C:\Users\Janos\.codex\sessions\...jsonl: file does not exist". Codex
+  keeps every conversation's absolute file path, working folder and sandbox
+  roots in SQLite (`state_5.sqlite`, `threads.rollout_path` etc.) and in its
+  session `.jsonl` files, and restore only rewrote `.json` / `.toml`. Restore
+  now also rewrites:
+  - every text value in SQLite databases (`*.sqlite`, `*.sqlite3`, `*.db`),
+    using the same path rules (whole profile root, `\\?\` prefixes,
+    JSON-escaped values, prefix-safe: `Janos` never matches `Janosik`).
+    The staging copy is rewritten before it is copied into place.
+  - `*.jsonl` session files (Codex and Claude Code)
+  - user names stored with JSON `\uXXXX` escapes (`J\u00e1nos`)
+- **Claude Code history disappeared after restoring onto a different user
+  profile.** Claude Code names `~\.claude\projects\<folder>` after the
+  project path (`C:\Users\János\proj` -> `C--Users-J-nos-proj`). Restore
+  now renames these folders for the new profile.
+
 - **Backup could hang forever at "Checking accessibility".** One file whose
   open never returned stopped the whole backup, with no hint which file. On a
   user's machine that can be a OneDrive / cloud-files placeholder whose

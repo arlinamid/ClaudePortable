@@ -123,8 +123,15 @@ public sealed class RestoreEngine : IRestoreEngine
                 ?? Environment.ExpandEnvironmentVariables("%USERPROFILE%");
             var oldUserProfile = manifest.UserProfile ?? InferSourceUserProfile(manifest) ?? newUserProfile;
 
+            // Paths inside configs, session files and SQLite state (Codex's
+            // threads.rollout_path) move from the backup profile to this one;
+            // so do Claude Code's path-derived project folder names.
             progress?.Report(new OperationProgress("Rewriting paths"));
             _pathRewriter.Rewrite(tempRoot, oldUserProfile, newUserProfile);
+            var projectFolderWarnings = ClaudeCodeProjectFolders.RenameForProfile(
+                Path.Combine(tempRoot, "claude-code", "dotclaude", "projects"),
+                oldUserProfile,
+                newUserProfile);
 
             var now = _clock.GetUtcNow();
             var safetyBackups = new List<string>();
@@ -190,6 +197,10 @@ public sealed class RestoreEngine : IRestoreEngine
             {
                 var report = perTargetReports[i];
                 var linkWarnings = RecreateLinks(manifest.Links, report.ArchivePrefix, report.TargetFolder, oldUserProfile, newUserProfile);
+                if (report.ArchivePrefix.Equals("claude-code/dotclaude", StringComparison.OrdinalIgnoreCase))
+                {
+                    linkWarnings.AddRange(projectFolderWarnings);
+                }
                 if (linkWarnings.Count > 0)
                 {
                     perTargetReports[i] = report with { Warnings = [.. report.Warnings, .. linkWarnings] };
