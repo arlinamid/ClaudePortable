@@ -30,6 +30,7 @@ public sealed class MainViewModel : ViewModelBase
     private string _progressMessage = string.Empty;
     private double _progressValue;
     private bool _progressIsIndeterminate = true;
+    private CancellationTokenSource? _backupCts;
 
     public ObservableCollection<TargetEntry> Targets { get; } = new();
     public ObservableCollection<BackupEntry> Backups { get; } = new();
@@ -125,6 +126,10 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     public AsyncRelayCommand BackupNowCommand { get; }
+    public RelayCommand CancelBackupCommand { get; }
+
+    /// <summary>True while a backup runs; shows the Cancel button.</summary>
+    public bool IsBackupRunning => _backupCts is not null;
     public AsyncRelayCommand RefreshCommand { get; }
     public RelayCommand AddTargetCommand { get; }
     public RelayCommand RemoveTargetCommand { get; }
@@ -133,6 +138,7 @@ public sealed class MainViewModel : ViewModelBase
     public AsyncRelayCommand RestoreFromFileCommand { get; }
     public RelayCommand PickTargetProfileCommand { get; }
     public RelayCommand OpenChecklistCommand { get; }
+    public AsyncRelayCommand RepairProfilePathsCommand { get; }
 
     private TargetEntry? _selectedTarget;
 
@@ -202,6 +208,13 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         BackupNowCommand = new AsyncRelayCommand(BackupNowAsync);
+        CancelBackupCommand = new RelayCommand(
+            () =>
+            {
+                _backupCts?.Cancel();
+                ProgressMessage = Loc.T("Vm_Cancelling");
+            },
+            () => _backupCts is not null);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync);
         AddTargetCommand = new RelayCommand(AddTarget);
         RemoveTargetCommand = new RelayCommand(RemoveTarget, () => SelectedTarget is not null);
@@ -212,6 +225,7 @@ public sealed class MainViewModel : ViewModelBase
         RestoreFromFileCommand = new AsyncRelayCommand(RestoreFromFileAsync);
         PickTargetProfileCommand = new RelayCommand(PickTargetProfile);
         OpenChecklistCommand = new RelayCommand(OpenChecklist, () => !string.IsNullOrEmpty(PostRestoreChecklistPath));
+        RepairProfilePathsCommand = new AsyncRelayCommand(RepairProfilePathsAsync);
 
         ScheduledTasks.ActiveTargetProvider = () => Targets.FirstOrDefault()?.Path;
         ScheduledTasks.BackupGroupsProvider = () => GroupToggle.ToSelection(BackupGroups);
@@ -296,16 +310,20 @@ public sealed class MainViewModel : ViewModelBase
         Status = Loc.T("Vm_BackingUp");
         BeginBusy(Loc.T("Vm_StartingBackup"));
         var progress = CreateProgress();
+        var warnings = new UiLogWriter();
+        using var cts = new CancellationTokenSource();
+        SetBackupCts(cts);
         try
         {
             var outcome = await Task.Run(async () =>
             {
-                var engine = new BackupEngine(new WindowsPathDiscovery(), new ZipArchiveWriter());
+                var engine = new BackupEngine(new WindowsPathDiscovery(), new ZipArchiveWriter(warnings));
                 return await engine.CreateBackupAsync(
                         new BackupRequest(target.Path, RetentionTier.Daily, Groups: groups),
-                        progress)
+                        progress,
+                        cts.Token)
                     .ConfigureAwait(false);
-            }).ConfigureAwait(true);
+            }, cts.Token).ConfigureAwait(true);
 
             UiLogSink.Instance.Append($"backup done: {Path.GetFileName(outcome.ZipPath)} ({outcome.Manifest.FileCount} files, {outcome.Manifest.SizeBytes:N0} bytes)");
             foreach (var (key, count) in outcome.FilesPerSource)
@@ -325,7 +343,14 @@ public sealed class MainViewModel : ViewModelBase
             ProgressIsIndeterminate = true;
             var report = await Task.Run(() => new RetentionManager().Rotate(new FolderTarget(target.Path))).ConfigureAwait(true);
             UiLogSink.Instance.Append($"rotation: promoted={report.Promoted.Count} pruned={report.Pruned.Count}");
-            Status = Loc.T("Vm_BackupComplete");
+            Status = warnings.LineCount == 0
+                ? Loc.T("Vm_BackupComplete")
+                : Loc.F("Vm_BackupCompleteSkipped", warnings.LineCount);
+        }
+        catch (OperationCanceledException)
+        {
+            UiLogSink.Instance.Append("backup cancelled by user; no ZIP was written.");
+            Status = Loc.T("Vm_BackupCancelled");
         }
         catch (Exception ex)
         {
@@ -334,6 +359,7 @@ public sealed class MainViewModel : ViewModelBase
         }
         finally
         {
+            SetBackupCts(null);
             EndBusy();
         }
         await RefreshAsync().ConfigureAwait(true);
@@ -538,6 +564,13 @@ public sealed class MainViewModel : ViewModelBase
         await RefreshAsync().ConfigureAwait(true);
     }
 
+    private void SetBackupCts(CancellationTokenSource? cts)
+    {
+        _backupCts = cts;
+        Raise(nameof(IsBackupRunning));
+        CancelBackupCommand.RaiseCanExecuteChanged();
+    }
+
     private void BeginBusy(string initialMessage)
     {
         IsBusy = true;
@@ -609,6 +642,79 @@ public sealed class MainViewModel : ViewModelBase
         // Give Windows a beat to release handles + flush pending writes.
         await Task.Delay(1500).ConfigureAwait(true);
         return System.Diagnostics.Process.GetProcessesByName(processName).Length == 0;
+    }
+
+    /// <summary>
+    /// Points Codex / Claude Code state that still references another user's
+    /// profile (e.g. restored from a laptop "Janos" onto "János") at the
+    /// current profile. Same as `claudeportable repair-paths --yes`.
+    /// </summary>
+    public async Task RepairProfilePathsAsync()
+    {
+        var current = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        BeginBusy(Loc.T("Vm_RepairScanning"));
+        IReadOnlyList<(string Key, string Folder)> folders;
+        IReadOnlyList<ProfilePathRepair.ForeignProfile> profiles;
+        try
+        {
+            folders = ProfilePathRepair.AgentFolders(new WindowsPathDiscovery());
+            profiles = await Task.Run(() => ProfilePathRepair.Detect(folders.Select(f => f.Folder), current)).ConfigureAwait(true);
+        }
+        finally
+        {
+            EndBusy();
+        }
+
+        if (profiles.Count == 0)
+        {
+            UiLogSink.Instance.Append($"repair-paths: no paths into other user profiles found (current: {current}).");
+            Status = Loc.F("Vm_RepairNothing", current);
+            return;
+        }
+
+        var list = string.Join(Environment.NewLine, profiles.Select(p => $"  {p.ProfileRoot}  ({p.Occurrences})"));
+        var confirm = System.Windows.MessageBox.Show(
+            Loc.F("Dlg_RepairText", list, current),
+            Loc.T("Dlg_RepairTitle"),
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Question);
+        if (confirm != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+        if (!await EnsureClosedAsync("Codex", "Dlg_CloseCodexText", "Dlg_CloseCodexTitle").ConfigureAwait(true))
+        {
+            Status = Loc.T("Vm_RestoreCancelledRunningCodex");
+            return;
+        }
+
+        var backupRoot = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ClaudePortable",
+            $"path-repair-{DateTime.UtcNow.ToString("yyyy-MM-dd-HHmmss", System.Globalization.CultureInfo.InvariantCulture)}");
+        BeginBusy(Loc.T("Vm_RepairRunning"));
+        var progress = CreateProgress();
+        try
+        {
+            var result = await Task.Run(() => ProfilePathRepair.Repair(folders, profiles, current, backupRoot, progress)).ConfigureAwait(true);
+            UiLogSink.Instance.Append(
+                $"repair-paths: {string.Join(", ", profiles.Select(p => p.ProfileRoot))} -> {current}: " +
+                $"{result.FilesChanged} files, {result.ValuesChanged} paths changed; originals in {result.OriginalsBackupFolder ?? "(none changed)"}");
+            foreach (var w in result.Warnings)
+            {
+                UiLogSink.Instance.Append($"  warning: {w}");
+            }
+            Status = Loc.F("Vm_RepairDone", result.ValuesChanged, result.FilesChanged);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            UiLogSink.Instance.Append($"repair-paths failed: {ex.Message}");
+            Status = Loc.F("Vm_RepairFailed", ex.Message);
+        }
+        finally
+        {
+            EndBusy();
+        }
     }
 
     private void OnBackupGroupsChanged()

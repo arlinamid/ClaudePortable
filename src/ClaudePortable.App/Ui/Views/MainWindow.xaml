@@ -42,6 +42,10 @@
                                  Minimum="0" Maximum="1"
                                  IsIndeterminate="{Binding ProgressIsIndeterminate}"
                                  Foreground="#D97757" Background="#33322F" BorderThickness="0" />
+                    <Button Content="{loc:Loc Common_Cancel}"
+                            Command="{Binding CancelBackupCommand}"
+                            Visibility="{Binding IsBackupRunning, Converter={StaticResource BoolToVisible}}"
+                            Padding="10,2" Margin="12,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
             </StatusBarItem>
         </StatusBar>
@@ -396,6 +400,12 @@
                                              Style="{DynamicResource DarkTextBox}"
                                              FontFamily="{DynamicResource MonoFont}" />
                                 </DockPanel>
+
+                                <TextBlock Text="{loc:Loc Restore_RepairTitle}" Margin="0,4,0,4" FontWeight="SemiBold" Foreground="#D6D3C9" />
+                                <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Restore_RepairCaption}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                <Button Content="{loc:Loc Restore_RepairButton}"
+                                        Command="{Binding RepairProfilePathsCommand}"
+                                        HorizontalAlignment="Left" Margin="0,0,0,16" />
 
                                 <CheckBox IsChecked="{Binding IgnoreVersionMismatch}"
                                           Foreground="#D6D3C9"

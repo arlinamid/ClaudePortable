@@ -67,7 +67,7 @@ Launch with no arguments (or `--gui`). Warm-dark UI in the Claude Desktop style,
 - **Logs** - last 500 log lines from the current session, rendered mono.
 - **Schedule** - enumerates every Windows scheduled task on this machine via `schtasks.exe /Query /FO CSV /V`. AgentPortable-managed entries are flagged green (name starts with `ClaudePortable-` / `AgentPortable-`, or the author contains either name). Tasks that aren't managed but touch a Claude/Cowork/`.claude`/`.codex` path - including hand-written backup PowerShell scripts that compete with AgentPortable - are flagged orange. Per-row buttons run/disable/enable/delete the task and copy its raw XML to the clipboard. Use this to spot legacy `\Claude-Desktop-Backup`-style tasks that write loose-file backups into a long-path OneDrive folder and break sync.
 
-A ProgressBar on the status bar appears for the duration of any backup or restore, showing the current phase (`Extracting archive`, `Writing cowork-projects/<hash>`, etc.) with file-level percentage. Both commands run on the thread pool so the window stays responsive during multi-GB operations.
+A ProgressBar on the status bar appears for the duration of any backup or restore, showing the current phase (`Extracting archive`, `Writing cowork-projects/<hash>`, etc.) with file-level percentage. Both commands run on the thread pool so the window stays responsive during multi-GB operations. A running backup can be stopped with **Cancel** next to the progress bar; no partial ZIP is left behind.
 
 A tray icon keeps the app alive in the background; closing the window hides it, `Quit` in the tray menu actually exits.
 
@@ -109,6 +109,7 @@ claudeportable backup   --to <folder> [--tier daily] [--include <groups>] [--ski
 claudeportable list     --in <folder> [--json]         # list backups
 claudeportable restore  --from <zip>  --yes [--target-user <path>] [--ignore-version-mismatch] [--include <groups>] [--skip <groups>]
 claudeportable rotate   --in <folder> [--daily 7] [--weekly 3] [--monthly 2]
+claudeportable repair-paths [--dry-run] [--yes] [--from <old profile>]  # point restored Codex / Claude Code data at this user's profile
 claudeportable schedule install|show|remove|emit       # Windows Task Scheduler integration (install/emit accept --include/--skip)
 claudeportable schedule list [--all|--managed|--relevant] [--json]  # enumerate all scheduled tasks, flag Claude relevance
 claudeportable schedule disable|enable|run <name>       # toggle / trigger a scheduled task by full name
@@ -173,7 +174,9 @@ The typical workflow across two machines:
 6. Click **Restore selected snapshot**. Existing `.claude` and `%APPDATA%\Claude` content is moved aside to `<folder>_backup_<timestamp>` before the new data is written.
 7. After completion, `claude login` and `codex login` on the laptop and re-authorise any connectors - token caches were deliberately excluded.
 
-Where each folder is restored is decided **on the restore machine**: if Claude Desktop, Claude Code, Codex or `.agents` already has a data folder there (Store or non-Store install, a custom `%CODEX_HOME%`, redirected AppData), that folder is used. Otherwise the backup machine's path is re-rooted to the current profile. Paths inside JSON / TOML configs are rewritten from the backup machine's `%USERPROFILE%` (recorded in the manifest) to the new one, so profiles on another drive or outside `C:\Users` work too, e.g. `C:\Users\anna` -> `D:\Profiles\anna.CORP`.
+Where each folder is restored is decided **on the restore machine**: if Claude Desktop, Claude Code, Codex or `.agents` already has a data folder there (Store or non-Store install, a custom `%CODEX_HOME%`, redirected AppData), that folder is used. Otherwise the backup machine's path is re-rooted to the current profile. Paths inside JSON / TOML configs, `.jsonl` session files and SQLite databases (Codex keeps every conversation's file path in `state_5.sqlite`) are rewritten from the backup machine's `%USERPROFILE%` (recorded in the manifest) to the new one, and Claude Code's path-named project folders (`~\.claude\projects\C--Users-<name>-...`) are renamed to match, so profiles on another drive or outside `C:\Users` work too, e.g. `C:\Users\anna` -> `D:\Profiles\anna.CORP`.
+
+**Already restored onto a different user name with an older version?** If Codex says *failed to resolve rollout path C:\Users\&lt;other name&gt;\...* or Claude Code history is missing, use **Restore -> Advanced options -> Repair paths...** (or `claudeportable repair-paths --dry-run`, then `--yes`). It takes the current user from `%USERPROFILE%`, finds Codex / Claude Code data that still points into another profile, and redirects it in place. Changed files are copied to `%LOCALAPPDATA%\ClaudePortable\path-repair-<timestamp>` first. Close Codex and Claude Code before running it.
 
 Store-app reparse points (Claude Desktop from the Microsoft Store) refuse `Directory.Move` on their targets, so the restore engine detects them and overlays files instead of renaming. This is expected and logged as a single informational warning, not an error.
 
@@ -236,7 +239,7 @@ scripts/
 ## Security model
 
 - The app **never** archives OAuth tokens or credentials. `config.json` (contains `oauth:tokenCache`), `tokens.dat`, Codex `auth.json` and `.sandbox-secrets`, the Codex app's embedded browser profile, `Login Data*`, `Cookies*`, and `mcp-needs-auth-cache.json` are all explicitly excluded.
-- Live Claude Desktop files are opened with `FileShare.ReadWrite | FileShare.Delete`; unreadable ones are logged and skipped rather than failing the whole backup.
+- Every file is opened once, read-only, with `FileShare.ReadWrite | FileShare.Delete`, and streamed into the ZIP while it is hashed. A file that is locked, does not open within 30 s (e.g. held by another program or on an unreachable network share), or stops delivering data for 60 s is skipped with a warning naming it (Logs tab in the GUI, stderr on the CLI); the backup always finishes.
 - Restore refuses ZIP entries that would land outside its extraction folder (`../`, absolute paths), so a tampered backup cannot write elsewhere on disk.
 - Restore is two-stage: safety-rename of the existing folder, then file-by-file overlay. Nothing is deleted until you delete the safety backup manually.
 - Cowork project folder auto-discovery refuses drive roots, the user profile root, and every system folder - a misconfigured session cannot ask the tool to back up `C:\`.

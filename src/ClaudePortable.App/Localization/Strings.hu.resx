@@ -325,4 +325,35 @@ Bezárjam most az összes Codex folyamatot? A nyitott codex terminál-munkamenet
   <data name="Grid_ManagedBy" xml:space="preserve"><value>TÍPUS</value></data>
   <data name="Common_Yes" xml:space="preserve"><value>Igen</value></data>
   <data name="Common_No" xml:space="preserve"><value>Nem</value></data>
+  <data name="Common_Cancel" xml:space="preserve"><value>Mégse</value></data>
+  <data name="Vm_Cancelling" xml:space="preserve"><value>Megszakítás...</value></data>
+  <data name="Vm_BackupCancelled" xml:space="preserve"><value>Mentés megszakítva – semmi nem íródott ki.</value></data>
+  <data name="Vm_BackupCompleteSkipped" xml:space="preserve"><value>Mentés kész. {0} fájl kimaradt (zárolt, nem elérhető vagy csak felhőben van) – lásd Naplók.</value></data>
+  <data name="Cli_Repair_Desc" xml:space="preserve"><value>A más felhasználói profilra mutató Codex / Claude Code adatok átirányítása a jelenlegi profilra (pl. egy eltérő nevű profilra visszaállított laptopmentés után).</value></data>
+  <data name="Cli_Repair_From" xml:space="preserve"><value>Javítandó régi profilgyökér(ek), pl. C:\Users\Janos. Alapértelmezés: automatikus felismerés.</value></data>
+  <data name="Cli_Repair_DryRun" xml:space="preserve"><value>Csak kiírja, mit javítana.</value></data>
+  <data name="Cli_Repair_Yes" xml:space="preserve"><value>Helyben javítás megerősítése (az eredeti fájlokról előbb másolat készül).</value></data>
+  <data name="Cli_Repair_Current" xml:space="preserve"><value>jelenlegi profil: {0}</value></data>
+  <data name="Cli_Repair_NothingFound" xml:space="preserve"><value>Nincs mit javítani: nincs más felhasználói profilra mutató útvonal.</value></data>
+  <data name="Cli_Repair_Found" xml:space="preserve"><value>{1} útvonal mutat ide: {0} -&gt; átirányítás ide: {2}</value></data>
+  <data name="Cli_Repair_NeedYes" xml:space="preserve"><value>hiba: a repair-paths helyben módosít fájlokat; add meg a --yes kapcsolót (vagy --dry-run a puszta ellenőrzéshez).</value></data>
+  <data name="Cli_Repair_CodexRunning" xml:space="preserve"><value>hiba: a Codex fut (PID {0}). Előbb zárd be a Codex alkalmazást és a codex CLI munkameneteket.</value></data>
+  <data name="Cli_Repair_Done" xml:space="preserve"><value>javítva: {1} útvonal, {0} fájlban.</value></data>
+  <data name="Cli_Repair_Originals" xml:space="preserve"><value>eredeti fájlok mentve ide: {0}</value></data>
+  <data name="Restore_RepairTitle" xml:space="preserve"><value>Útvonalak javítása eltérő felhasználónévre történt visszaállítás után</value></data>
+  <data name="Restore_RepairCaption" xml:space="preserve"><value>Akkor használd, ha a Codex szerint „failed to resolve rollout path C:\Users\&lt;másik név&gt;\...”, vagy hiányzik a Claude Code előzmény egy eltérő felhasználónevű gépről visszaállított mentés után. Megkeresi a még a másik profilra mutató adatokat, és erre a profilra irányítja őket. Előbb zárd be a Codexet és a Claude Code-ot; a módosított fájlokról a javítás előtt másolat készül.</value></data>
+  <data name="Restore_RepairButton" xml:space="preserve"><value>Útvonalak javítása...</value></data>
+  <data name="Dlg_RepairTitle" xml:space="preserve"><value>Javítsuk az útvonalakat?</value></data>
+  <data name="Dlg_RepairText" xml:space="preserve"><value>A gépen lévő Codex / Claude Code adatok még másik felhasználói profilra mutatnak:
+
+{0}
+
+Átirányítsuk őket a jelenlegi profilra ({1})?
+
+Előbb zárd be a Claude Code munkameneteket. A módosított fájlokról a javítás előtt másolat készül.</value></data>
+  <data name="Vm_RepairScanning" xml:space="preserve"><value>Más felhasználói profilra mutató útvonalak keresése...</value></data>
+  <data name="Vm_RepairRunning" xml:space="preserve"><value>Útvonalak javítása...</value></data>
+  <data name="Vm_RepairNothing" xml:space="preserve"><value>Nincs mit javítani – minden útvonal már ide mutat: {0}.</value></data>
+  <data name="Vm_RepairDone" xml:space="preserve"><value>Útvonalak javítva: {0}, {1} fájlban. Indítsd újra a Codexet.</value></data>
+  <data name="Vm_RepairFailed" xml:space="preserve"><value>Az útvonalak javítása sikertelen: {0}</value></data>
 </root>

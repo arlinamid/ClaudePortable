@@ -6,6 +6,66 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-09
+
+### Fixed
+
+- **Codex could not resume conversations after restoring onto a different
+  user profile** (e.g. laptop `C:\Users\Janos` -> desktop
+  `C:\Users\János`). The error was "failed to resolve rollout path
+  C:\Users\Janos\.codex\sessions\...jsonl: file does not exist". Codex
+  keeps every conversation's absolute file path, working folder and sandbox
+  roots in SQLite (`state_5.sqlite`, `threads.rollout_path` etc.) and in its
+  session `.jsonl` files, and restore only rewrote `.json` / `.toml`. Restore
+  now also rewrites:
+  - every text value in SQLite databases (`*.sqlite`, `*.sqlite3`, `*.db`),
+    using the same path rules (whole profile root, `\\?\` prefixes,
+    JSON-escaped values, prefix-safe: `Janos` never matches `Janosik`).
+    The staging copy is rewritten before it is copied into place.
+  - `*.jsonl` session files (Codex and Claude Code)
+  - user names stored with JSON `\uXXXX` escapes (`J\u00e1nos`)
+- **Claude Code history disappeared after restoring onto a different user
+  profile.** Claude Code names `~\.claude\projects\<folder>` after the
+  project path (`C:\Users\János\proj` -> `C--Users-J-nos-proj`). Restore
+  now renames these folders for the new profile.
+
+- **Backup could hang forever at "Checking accessibility".** One file whose
+  open never returned stopped the whole backup, with no hint which file. On a
+  user's machine that can be a OneDrive / cloud-files placeholder whose
+  download cannot complete, a file held by another program or filter driver,
+  or a link to an unreachable network share. The ZIP writer now:
+  - skips cloud-only placeholders without opening them (the README always
+    said so; nothing actually checked)
+  - abandons an open after 30 s and a read that delivers no data for 60 s
+  - names every skipped file in the Logs tab (GUI) / stderr (CLI)
+  - the status bar says how many files were skipped
+- **Backups read every file once instead of three times.** The separate
+  accessibility check and hashing passes are gone: files are streamed into
+  the ZIP and hashed on the way, and `manifest.json` is written as the last
+  entry. The content hash is now SHA-256 over each file's path and its own
+  SHA-256; it is informational only, and nothing verifies against the old
+  definition.
+- A failed or cancelled backup no longer leaves a `.tmp` ZIP in the target
+  folder.
+
+### Added
+
+- **Cancel** button for a running backup (next to the progress bar).
+- **Repair paths** for machines that were already restored onto a
+  differently named profile with an older version (Codex says "failed to
+  resolve rollout path C:\Users\<other name>\...", or Claude Code history
+  is missing). The current user comes from `%USERPROFILE%`. The Codex,
+  Claude Code and `.agents` state is scanned for paths into other user
+  profiles, and those are pointed at the current profile in place, with
+  every changed file copied to
+  `%LOCALAPPDATA%\ClaudePortable\path-repair-<timestamp>` first.
+  - GUI: Restore -> Advanced options -> **Repair paths...** (shows what it
+    found and asks first).
+  - CLI: `claudeportable repair-paths --dry-run`, then `--yes`
+    (`--from C:\Users\Janos` to name the old profile explicitly).
+  - Placeholders such as `C:\Users\<myname>` or `C:\Users\...` in logs and
+    memory notes are not mistaken for profiles.
+
 ## [0.4.0] - 2026-10-09
 
 ### Changed
