@@ -48,6 +48,13 @@ public sealed class PathRewriter : IPathRewriter
     private static readonly string[] SqlitePatterns = ["*.sqlite", "*.sqlite3", "*.db"];
 
     public PathRewriteResult Rewrite(string rootFolder, string oldUserProfile, string newUserProfile)
+        => Rewrite(rootFolder, oldUserProfile, newUserProfile, beforeModify: null);
+
+    /// <param name="beforeModify">
+    /// Called with a file's path right before that file is changed (used by
+    /// the in-place repair to keep a copy of the original).
+    /// </param>
+    public PathRewriteResult Rewrite(string rootFolder, string oldUserProfile, string newUserProfile, Action<string>? beforeModify)
     {
         if (!Directory.Exists(rootFolder)
             || string.Equals(oldUserProfile.TrimEnd('\\', '/'), newUserProfile.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
@@ -83,6 +90,7 @@ public sealed class PathRewriter : IPathRewriter
             var (replaced, newContent) = RewriteText(content, oldUserProfile, newUserProfile);
             if (replaced > 0)
             {
+                beforeModify?.Invoke(file);
                 File.WriteAllText(file, newContent, new UTF8Encoding(false));
                 filesChanged++;
                 replacementsMade += replaced;
@@ -96,9 +104,18 @@ public sealed class PathRewriter : IPathRewriter
                 continue;
             }
             filesScanned++;
+            bool MayNeedRewrite(string value) => markers.Any(m => value.Contains(m, StringComparison.OrdinalIgnoreCase));
+            if (beforeModify is not null)
+            {
+                if (SqlitePathRewriter.CountCandidates(db, MayNeedRewrite) == 0)
+                {
+                    continue;
+                }
+                beforeModify(db);
+            }
             var replaced = SqlitePathRewriter.Rewrite(
                 db,
-                value => markers.Any(m => value.Contains(m, StringComparison.OrdinalIgnoreCase)),
+                MayNeedRewrite,
                 value => RewriteText(value, oldUserProfile, newUserProfile).NewContent);
             if (replaced > 0)
             {

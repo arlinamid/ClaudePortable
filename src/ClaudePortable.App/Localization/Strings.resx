@@ -329,4 +329,31 @@ Close all Codex processes now? Unsaved work in open codex terminal sessions is l
   <data name="Vm_Cancelling" xml:space="preserve"><value>Cancelling...</value></data>
   <data name="Vm_BackupCancelled" xml:space="preserve"><value>Backup cancelled - nothing was written.</value></data>
   <data name="Vm_BackupCompleteSkipped" xml:space="preserve"><value>Backup complete. {0} file(s) were skipped (locked, unavailable or cloud-only) - see Logs.</value></data>
+  <data name="Cli_Repair_Desc" xml:space="preserve"><value>Point Codex / Claude Code data that still refers to another user's profile (e.g. after restoring a laptop backup onto a differently named profile) at the current profile.</value></data>
+  <data name="Cli_Repair_From" xml:space="preserve"><value>Old profile root(s) to repair, e.g. C:\Users\Janos. Default: detected automatically.</value></data>
+  <data name="Cli_Repair_DryRun" xml:space="preserve"><value>Only report what would be repaired.</value></data>
+  <data name="Cli_Repair_Yes" xml:space="preserve"><value>Confirm the in-place repair (originals are copied first).</value></data>
+  <data name="Cli_Repair_Current" xml:space="preserve"><value>current profile: {0}</value></data>
+  <data name="Cli_Repair_NothingFound" xml:space="preserve"><value>Nothing to repair: no paths into other user profiles found.</value></data>
+  <data name="Cli_Repair_Found" xml:space="preserve"><value>found {1} path(s) into {0} -&gt; will point to {2}</value></data>
+  <data name="Cli_Repair_NeedYes" xml:space="preserve"><value>error: repair-paths changes files in place; add --yes (or --dry-run to only look).</value></data>
+  <data name="Cli_Repair_CodexRunning" xml:space="preserve"><value>error: Codex is running (PID {0}). Close the Codex app and codex CLI sessions first.</value></data>
+  <data name="Cli_Repair_Done" xml:space="preserve"><value>repaired: {1} path(s) in {0} file(s).</value></data>
+  <data name="Cli_Repair_Originals" xml:space="preserve"><value>originals saved in: {0}</value></data>
+  <data name="Restore_RepairTitle" xml:space="preserve"><value>Repair paths after a restore onto a different user name</value></data>
+  <data name="Restore_RepairCaption" xml:space="preserve"><value>Use this if Codex says "failed to resolve rollout path C:\Users\&lt;other name&gt;\..." or Claude Code history is missing after restoring a backup from a machine with a different user name. Finds data that still points to the other profile and points it to this one. Close Codex and Claude Code first; changed files are copied aside before the repair.</value></data>
+  <data name="Restore_RepairButton" xml:space="preserve"><value>Repair paths...</value></data>
+  <data name="Dlg_RepairTitle" xml:space="preserve"><value>Repair paths?</value></data>
+  <data name="Dlg_RepairText" xml:space="preserve"><value>Codex / Claude Code data on this machine still points to another user profile:
+
+{0}
+
+Redirect it to the current profile {1}?
+
+Close Claude Code sessions first. Changed files are copied aside before the repair.</value></data>
+  <data name="Vm_RepairScanning" xml:space="preserve"><value>Looking for paths into other user profiles...</value></data>
+  <data name="Vm_RepairRunning" xml:space="preserve"><value>Repairing paths...</value></data>
+  <data name="Vm_RepairNothing" xml:space="preserve"><value>Nothing to repair - all paths already point to {0}.</value></data>
+  <data name="Vm_RepairDone" xml:space="preserve"><value>Paths repaired: {0} in {1} file(s). Restart Codex.</value></data>
+  <data name="Vm_RepairFailed" xml:space="preserve"><value>Path repair failed: {0}</value></data>
 </root>

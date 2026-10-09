@@ -51,6 +51,20 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 ### Added
 
 - **Cancel** button for a running backup (next to the progress bar).
+- **Repair paths** for machines that were already restored onto a
+  differently named profile with an older version (Codex says "failed to
+  resolve rollout path C:\Users\<other name>\...", or Claude Code history
+  is missing). The current user comes from `%USERPROFILE%`. The Codex,
+  Claude Code and `.agents` state is scanned for paths into other user
+  profiles, and those are pointed at the current profile in place, with
+  every changed file copied to
+  `%LOCALAPPDATA%\ClaudePortable\path-repair-<timestamp>` first.
+  - GUI: Restore -> Advanced options -> **Repair paths...** (shows what it
+    found and asks first).
+  - CLI: `claudeportable repair-paths --dry-run`, then `--yes`
+    (`--from C:\Users\Janos` to name the old profile explicitly).
+  - Placeholders such as `C:\Users\<myname>` or `C:\Users\...` in logs and
+    memory notes are not mistaken for profiles.
 
 ## [0.4.0] - 2026-10-09
 

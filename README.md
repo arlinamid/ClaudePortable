@@ -109,6 +109,7 @@ claudeportable backup   --to <folder> [--tier daily] [--include <groups>] [--ski
 claudeportable list     --in <folder> [--json]         # list backups
 claudeportable restore  --from <zip>  --yes [--target-user <path>] [--ignore-version-mismatch] [--include <groups>] [--skip <groups>]
 claudeportable rotate   --in <folder> [--daily 7] [--weekly 3] [--monthly 2]
+claudeportable repair-paths [--dry-run] [--yes] [--from <old profile>]  # point restored Codex / Claude Code data at this user's profile
 claudeportable schedule install|show|remove|emit       # Windows Task Scheduler integration (install/emit accept --include/--skip)
 claudeportable schedule list [--all|--managed|--relevant] [--json]  # enumerate all scheduled tasks, flag Claude relevance
 claudeportable schedule disable|enable|run <name>       # toggle / trigger a scheduled task by full name
@@ -174,6 +175,8 @@ The typical workflow across two machines:
 7. After completion, `claude login` and `codex login` on the laptop and re-authorise any connectors - token caches were deliberately excluded.
 
 Where each folder is restored is decided **on the restore machine**: if Claude Desktop, Claude Code, Codex or `.agents` already has a data folder there (Store or non-Store install, a custom `%CODEX_HOME%`, redirected AppData), that folder is used. Otherwise the backup machine's path is re-rooted to the current profile. Paths inside JSON / TOML configs, `.jsonl` session files and SQLite databases (Codex keeps every conversation's file path in `state_5.sqlite`) are rewritten from the backup machine's `%USERPROFILE%` (recorded in the manifest) to the new one, and Claude Code's path-named project folders (`~\.claude\projects\C--Users-<name>-...`) are renamed to match, so profiles on another drive or outside `C:\Users` work too, e.g. `C:\Users\anna` -> `D:\Profiles\anna.CORP`.
+
+**Already restored onto a different user name with an older version?** If Codex says *failed to resolve rollout path C:\Users\&lt;other name&gt;\...* or Claude Code history is missing, use **Restore -> Advanced options -> Repair paths...** (or `claudeportable repair-paths --dry-run`, then `--yes`). It takes the current user from `%USERPROFILE%`, finds Codex / Claude Code data that still points into another profile, and redirects it in place. Changed files are copied to `%LOCALAPPDATA%\ClaudePortable\path-repair-<timestamp>` first. Close Codex and Claude Code before running it.
 
 Store-app reparse points (Claude Desktop from the Microsoft Store) refuse `Directory.Move` on their targets, so the restore engine detects them and overlays files instead of renaming. This is expected and logged as a single informational warning, not an error.
 

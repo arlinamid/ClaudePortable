@@ -401,6 +401,12 @@
                                              FontFamily="{DynamicResource MonoFont}" />
                                 </DockPanel>
 
+                                <TextBlock Text="{loc:Loc Restore_RepairTitle}" Margin="0,4,0,4" FontWeight="SemiBold" Foreground="#D6D3C9" />
+                                <TextBlock Style="{DynamicResource Caption}" Text="{loc:Loc Restore_RepairCaption}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                <Button Content="{loc:Loc Restore_RepairButton}"
+                                        Command="{Binding RepairProfilePathsCommand}"
+                                        HorizontalAlignment="Left" Margin="0,0,0,16" />
+
                                 <CheckBox IsChecked="{Binding IgnoreVersionMismatch}"
                                           Foreground="#D6D3C9"
                                           Margin="0,0,0,8">

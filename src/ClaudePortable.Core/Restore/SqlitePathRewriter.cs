@@ -27,6 +27,58 @@ internal static class SqlitePathRewriter
         }
     }
 
+    /// <summary>Read-only: number of TEXT values for which <paramref name="mayNeedRewrite"/> is true.</summary>
+    public static int CountCandidates(string databasePath, Func<string, bool> mayNeedRewrite)
+    {
+        var count = 0;
+        Scan(databasePath, mayNeedRewrite, _ => count++, maxValuesPerColumn: int.MaxValue);
+        return count;
+    }
+
+    /// <summary>
+    /// Read-only: calls <paramref name="visit"/> for TEXT values passing
+    /// <paramref name="filter"/>, at most <paramref name="maxValuesPerColumn"/> per column.
+    /// </summary>
+    public static void Scan(string databasePath, Func<string, bool> filter, Action<string> visit, int maxValuesPerColumn)
+    {
+        var builder = new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath,
+            Mode = SqliteOpenMode.ReadOnly,
+            Pooling = false,
+        };
+        try
+        {
+            using var connection = new SqliteConnection(builder.ToString());
+            connection.Open();
+            connection.CreateFunction<string?, bool>("ap_hit", v => v is not null && filter(v), isDeterministic: true);
+            foreach (var table in OrdinaryTables(connection))
+            {
+                foreach (var column in Columns(connection, table))
+                {
+                    using var select = connection.CreateCommand();
+                    select.CommandText =
+                        $"SELECT {Quote(column)} FROM {Quote(table)} " +
+                        $"WHERE typeof({Quote(column)}) = 'text' AND ap_hit({Quote(column)}) LIMIT {maxValuesPerColumn}";
+                    try
+                    {
+                        using var reader = select.ExecuteReader();
+                        while (reader.Read())
+                        {
+                            visit(reader.GetString(0));
+                        }
+                    }
+                    catch (SqliteException)
+                    {
+                    }
+                }
+            }
+        }
+        catch (SqliteException)
+        {
+        }
+    }
+
     /// <returns>Number of values changed.</returns>
     public static int Rewrite(string databasePath, Func<string, bool> mayNeedRewrite, Func<string, string> rewrite)
     {

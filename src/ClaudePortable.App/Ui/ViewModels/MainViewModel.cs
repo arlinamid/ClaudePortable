@@ -138,6 +138,7 @@ public sealed class MainViewModel : ViewModelBase
     public AsyncRelayCommand RestoreFromFileCommand { get; }
     public RelayCommand PickTargetProfileCommand { get; }
     public RelayCommand OpenChecklistCommand { get; }
+    public AsyncRelayCommand RepairProfilePathsCommand { get; }
 
     private TargetEntry? _selectedTarget;
 
@@ -224,6 +225,7 @@ public sealed class MainViewModel : ViewModelBase
         RestoreFromFileCommand = new AsyncRelayCommand(RestoreFromFileAsync);
         PickTargetProfileCommand = new RelayCommand(PickTargetProfile);
         OpenChecklistCommand = new RelayCommand(OpenChecklist, () => !string.IsNullOrEmpty(PostRestoreChecklistPath));
+        RepairProfilePathsCommand = new AsyncRelayCommand(RepairProfilePathsAsync);
 
         ScheduledTasks.ActiveTargetProvider = () => Targets.FirstOrDefault()?.Path;
         ScheduledTasks.BackupGroupsProvider = () => GroupToggle.ToSelection(BackupGroups);
@@ -640,6 +642,79 @@ public sealed class MainViewModel : ViewModelBase
         // Give Windows a beat to release handles + flush pending writes.
         await Task.Delay(1500).ConfigureAwait(true);
         return System.Diagnostics.Process.GetProcessesByName(processName).Length == 0;
+    }
+
+    /// <summary>
+    /// Points Codex / Claude Code state that still references another user's
+    /// profile (e.g. restored from a laptop "Janos" onto "János") at the
+    /// current profile. Same as `claudeportable repair-paths --yes`.
+    /// </summary>
+    public async Task RepairProfilePathsAsync()
+    {
+        var current = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        BeginBusy(Loc.T("Vm_RepairScanning"));
+        IReadOnlyList<(string Key, string Folder)> folders;
+        IReadOnlyList<ProfilePathRepair.ForeignProfile> profiles;
+        try
+        {
+            folders = ProfilePathRepair.AgentFolders(new WindowsPathDiscovery());
+            profiles = await Task.Run(() => ProfilePathRepair.Detect(folders.Select(f => f.Folder), current)).ConfigureAwait(true);
+        }
+        finally
+        {
+            EndBusy();
+        }
+
+        if (profiles.Count == 0)
+        {
+            UiLogSink.Instance.Append($"repair-paths: no paths into other user profiles found (current: {current}).");
+            Status = Loc.F("Vm_RepairNothing", current);
+            return;
+        }
+
+        var list = string.Join(Environment.NewLine, profiles.Select(p => $"  {p.ProfileRoot}  ({p.Occurrences})"));
+        var confirm = System.Windows.MessageBox.Show(
+            Loc.F("Dlg_RepairText", list, current),
+            Loc.T("Dlg_RepairTitle"),
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Question);
+        if (confirm != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+        if (!await EnsureClosedAsync("Codex", "Dlg_CloseCodexText", "Dlg_CloseCodexTitle").ConfigureAwait(true))
+        {
+            Status = Loc.T("Vm_RestoreCancelledRunningCodex");
+            return;
+        }
+
+        var backupRoot = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ClaudePortable",
+            $"path-repair-{DateTime.UtcNow.ToString("yyyy-MM-dd-HHmmss", System.Globalization.CultureInfo.InvariantCulture)}");
+        BeginBusy(Loc.T("Vm_RepairRunning"));
+        var progress = CreateProgress();
+        try
+        {
+            var result = await Task.Run(() => ProfilePathRepair.Repair(folders, profiles, current, backupRoot, progress)).ConfigureAwait(true);
+            UiLogSink.Instance.Append(
+                $"repair-paths: {string.Join(", ", profiles.Select(p => p.ProfileRoot))} -> {current}: " +
+                $"{result.FilesChanged} files, {result.ValuesChanged} paths changed; originals in {result.OriginalsBackupFolder ?? "(none changed)"}");
+            foreach (var w in result.Warnings)
+            {
+                UiLogSink.Instance.Append($"  warning: {w}");
+            }
+            Status = Loc.F("Vm_RepairDone", result.ValuesChanged, result.FilesChanged);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            UiLogSink.Instance.Append($"repair-paths failed: {ex.Message}");
+            Status = Loc.F("Vm_RepairFailed", ex.Message);
+        }
+        finally
+        {
+            EndBusy();
+        }
     }
 
     private void OnBackupGroupsChanged()
