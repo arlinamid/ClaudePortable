@@ -40,12 +40,30 @@ public static class SourceGroups
         }
         return key switch
         {
-            "claudeDesktopAppData" or "claudeDesktopLocalAppData" => [ClaudeDesktop],
-            "claudeCodeUserProfile" => [ClaudeCode],
+            "claudeDesktopAppData" or "claudeDesktopLocalAppData" or "claudeDesktop3pAppData" => [ClaudeDesktop],
+            "claudeCodeUserProfile" or "claudeCodeGlobalConfig" => [ClaudeCode],
             "codexUserProfile" or "codexDesktopAppData" => [Codex],
             "agentsUserProfile" => [ClaudeCode, Codex],
             _ => All,
         };
+    }
+
+    /// <summary>Archive prefix of external folders referenced by the agents' configuration.</summary>
+    public const string ExternalPrefix = "external/";
+
+    /// <summary>
+    /// Groups an archive prefix belongs to; external folders belong to the
+    /// groups whose configuration refers to them (recorded in the manifest).
+    /// </summary>
+    public static IReadOnlyList<string> ForArchivePrefix(string archivePrefix, BackupManifest manifest)
+    {
+        if (archivePrefix.StartsWith(ExternalPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var entry = manifest.ExternalPaths.FirstOrDefault(e =>
+                string.Equals(e.ArchivePrefix, archivePrefix, StringComparison.OrdinalIgnoreCase));
+            return entry?.Groups is { Count: > 0 } groups ? groups : All;
+        }
+        return ForArchivePrefix(archivePrefix);
     }
 
     /// <summary>Groups an archive prefix belongs to (incl. legacy prefixes).</summary>
@@ -98,8 +116,12 @@ public static class SourceGroups
     /// <summary>Groups that actually have data in the backup.</summary>
     public static IReadOnlyList<string> ContentsOf(BackupManifest manifest)
     {
+        // External folders are dependencies of the agents in the backup,
+        // not content of their own.
         var sourceKeys = manifest.ArchiveTargets.Count > 0
-            ? manifest.ArchiveTargets.Keys.Select(p => SourceLayout.KeyFor(p) ?? p)
+            ? manifest.ArchiveTargets.Keys
+                .Where(p => !p.StartsWith(ExternalPrefix, StringComparison.OrdinalIgnoreCase))
+                .Select(p => SourceLayout.KeyFor(p) ?? p)
             : manifest.SourcePaths.Keys;
         // The shared .agents store does not by itself mean a backup holds
         // Claude Code AND Codex; it only counts when it is all there is.

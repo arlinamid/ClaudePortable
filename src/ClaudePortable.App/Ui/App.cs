@@ -31,6 +31,8 @@ public static class App
             tray.QuitRequested += (_, _) =>
             {
                 tray.Dispose();
+                Services.UiLogSink.Instance.Shutdown();
+                Serilog.Log.CloseAndFlush();
                 app.Shutdown();
             };
             mainWindow.Closing += (_, args) =>

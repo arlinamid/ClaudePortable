@@ -185,7 +185,7 @@ public sealed class CoworkProjectDiscovery : ClaudePortable.Core.Abstractions.IC
         return true;
     }
 
-    private static string ShortHash(string path)
+    internal static string ShortHash(string path)
     {
         var bytes = Encoding.UTF8.GetBytes(path.ToLowerInvariant());
         var hash = SHA256.HashData(bytes);

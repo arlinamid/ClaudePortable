@@ -14,7 +14,14 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
     // fail Directory.Exists on the reparse point even though the target
     // is fully accessible. Enumerating the Packages path directly bypasses
     // the reparse-point resolution.
-    private static readonly (string Key, string[] Candidates, string Source)[] KnownPaths =
+    //
+    // Claude Desktop ships as two MSIX packages: "Claude" (claude.ai
+    // download, Claude_pzs8sxrjxfjjc) and "AnthropicPBC.Claude" (Microsoft
+    // Store). Since 4.x both write %APPDATA%\Claude directly (the package
+    // declares unvirtualizedResources) and it is no longer a reparse point;
+    // older builds still need the Packages fallbacks. The legacy Squirrel
+    // installer always used %APPDATA%\Claude. All variants share one folder.
+    private static readonly (string Key, string[] Candidates, string Source, bool IsFile)[] KnownPaths =
     [
         (
             "claudeDesktopAppData",
@@ -22,13 +29,40 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
             {
                 @"%APPDATA%\Claude",
                 @"%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude",
+                @"%LOCALAPPDATA%\Packages\AnthropicPBC.Claude_*\LocalCache\Roaming\Claude",
             },
-            "Spec 1.1 + Store-app reparse fallback"
+            "Claude Desktop (claude.ai, Store or legacy install), verified 2026-10-29",
+            false
         ),
+        // Claude Desktop in third-party inference mode (Bedrock / Vertex /
+        // gateway) keeps its own profile next to the regular one.
+        (
+            "claudeDesktop3pAppData",
+            new[]
+            {
+                @"%APPDATA%\Claude-3p",
+                @"%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude-3p",
+                @"%LOCALAPPDATA%\Packages\AnthropicPBC.Claude_*\LocalCache\Roaming\Claude-3p",
+            },
+            "Claude Desktop third-party inference profile",
+            false
+        ),
+        // CLAUDE_CONFIG_DIR moves both the .claude folder and .claude.json.
         (
             "claudeCodeUserProfile",
-            new[] { @"%USERPROFILE%\.claude" },
-            "Spec 1.1 + verified 2026-04-22"
+            new[] { @"%CLAUDE_CONFIG_DIR%", @"%USERPROFILE%\.claude" },
+            "Spec 1.1 + verified 2026-04-22",
+            false
+        ),
+        // Claude Code's global settings: user-scoped MCP servers and the
+        // per-project settings (allowed tools, project MCP servers, trust).
+        // It also holds account / machine ids, which restore never copies
+        // over: see ClaudeGlobalConfigMerger.
+        (
+            "claudeCodeGlobalConfig",
+            new[] { @"%CLAUDE_CONFIG_DIR%\.claude.json", @"%USERPROFILE%\.claude.json" },
+            "Claude Code global config, verified 2026-10-29",
+            true
         ),
         // NOTE: there is intentionally no "coworkSessions" entry here.
         // The original Spec 1.1 guess of %USERPROFILE%\.cowork was never
@@ -48,8 +82,10 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
             {
                 @"%LOCALAPPDATA%\Claude",
                 @"%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Local\Claude",
+                @"%LOCALAPPDATA%\Packages\AnthropicPBC.Claude_*\LocalCache\Local\Claude",
             },
-            "Spec 1.1 + Store-app reparse fallback"
+            "Spec 1.1 + Store-app reparse fallback",
+            false
         ),
         // OpenAI Codex. The CLI, the IDE extension and the Codex desktop
         // app all share one state root: %CODEX_HOME%, defaulting to
@@ -64,12 +100,16 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
                 @"%CODEX_HOME%",
                 @"%USERPROFILE%\.codex",
             },
-            "Codex CLI/desktop state root, verified 2026-10-09"
+            "Codex CLI/desktop state root, verified 2026-10-29",
+            false
         ),
-        // Codex desktop (Electron, Store-packaged as OpenAI.Codex_<publisherId>).
-        // Same reparse-point story as Claude Desktop: %APPDATA%\Codex is
-        // redirected into the package's LocalCache. The package folder is
-        // matched by wildcard so a different publisher-id suffix still works.
+        // Codex desktop (Electron, Store-packaged as OpenAI.Codex_<publisherId>;
+        // since 26.x the app is branded ChatGPT and runs as ChatGPT.exe).
+        // %APPDATA%\Codex is virtualized into the package's LocalCache, so
+        // outside the package only the Packages path exists. The app's live
+        // profile is web\Codex below it (its --user-data-dir); the top-level
+        // Chromium folders date from before 26.x. A non-packaged install
+        // would write %APPDATA%\Codex directly.
         (
             "codexDesktopAppData",
             new[]
@@ -77,7 +117,8 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
                 @"%APPDATA%\Codex",
                 @"%LOCALAPPDATA%\Packages\OpenAI.Codex_*\LocalCache\Roaming\Codex",
             },
-            "Codex desktop Store-app, verified 2026-10-09"
+            "Codex desktop Store-app, verified 2026-10-29",
+            false
         ),
         // Cross-agent skill store. `npx skills add` installs skills here and
         // links them into each agent's own folder (~\.claude\skills\<name>
@@ -87,7 +128,8 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
         (
             "agentsUserProfile",
             new[] { @"%USERPROFILE%\.agents" },
-            "Shared agent skills store (npx skills, Codex user skills)"
+            "Shared agent skills store (npx skills, Codex user skills)",
+            false
         ),
     ];
 
@@ -105,7 +147,7 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
                         continue;
                     }
                     first ??= expanded;
-                    if (SafeDirectoryExists(expanded))
+                    if (kp.IsFile ? SafeFileExists(expanded) : SafeDirectoryExists(expanded))
                     {
                         return new DiscoveredClaudePath(kp.Key, expanded, true, kp.Source);
                     }
@@ -152,6 +194,18 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return expanded;
+        }
+    }
+
+    private static bool SafeFileExists(string path)
+    {
+        try
+        {
+            return File.Exists(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 

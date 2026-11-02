@@ -592,4 +592,85 @@
         </Setter>
     </Style>
 
+    <!--
+        Collapsible log sections (Logs tab). The whole header row is one
+        toggle button: click, Space or Enter opens and closes it, the chevron
+        turns, and the focus ring matches the buttons. Its accessible name
+        comes from the Expander's AutomationProperties.Name.
+    -->
+    <Style x:Key="LogExpander" TargetType="Expander">
+        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+        <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Expander">
+                    <DockPanel>
+                        <ToggleButton DockPanel.Dock="Top"
+                                      IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                      AutomationProperties.Name="{TemplateBinding AutomationProperties.Name}"
+                                      Content="{TemplateBinding Header}"
+                                      ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                      Cursor="Hand"
+                                      FocusVisualStyle="{x:Null}"
+                                      HorizontalContentAlignment="Stretch">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent"
+                                            BorderThickness="2" CornerRadius="8" Padding="8,6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="Chevron" Text="&#xE76C;"
+                                                       FontFamily="{StaticResource IconFont}" FontSize="11"
+                                                       Foreground="{StaticResource TextMutedBrush}"
+                                                       VerticalAlignment="Center" Margin="0,0,10,0"
+                                                       RenderTransformOrigin="0.5,0.5">
+                                                <TextBlock.RenderTransform>
+                                                    <RotateTransform Angle="0" />
+                                                </TextBlock.RenderTransform>
+                                            </TextBlock>
+                                            <ContentPresenter Grid.Column="1" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="Chevron" Property="RenderTransform">
+                                                <Setter.Value>
+                                                    <RotateTransform Angle="90" />
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
+                                        </Trigger>
+                                        <Trigger Property="IsKeyboardFocused" Value="True">
+                                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource FocusRingBrush}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+                        <ContentPresenter x:Name="ExpandSite" Visibility="Collapsed" Margin="28,2,0,6" />
+                    </DockPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="ExpandSite" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Small count badge next to a section name. -->
+    <Style x:Key="LogBadge" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}" />
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="Padding" Value="7,1" />
+        <Setter Property="Margin" Value="8,0,0,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
 </ResourceDictionary>

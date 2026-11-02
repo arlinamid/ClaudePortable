@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.Globalization;
 using System.Runtime.Versioning;
 using ClaudePortable.App.Localization;
+using ClaudePortable.App.Logging;
 using ClaudePortable.Core.Restore;
 
 namespace ClaudePortable.App.Commands;
@@ -59,7 +60,8 @@ public static class RestoreCommand
                 return;
             }
 
-            var engine = new RestoreEngine(new PathRewriter());
+            using var run = RunLog.Start("restore", from.FullName, Program.CliOrigin, echo: Console.Error);
+            var engine = new RestoreEngine(new PathRewriter(), log: run);
             try
             {
                 var outcome = await engine.RestoreAsync(new(from.FullName, targetUser, Confirmed: true, IgnoreVersionMismatch: ignoreVersion, Groups: groups)).ConfigureAwait(false);
@@ -74,6 +76,7 @@ public static class RestoreCommand
                     Console.WriteLine($"  - {sb}");
                 }
                 Console.WriteLine(Loc.F("Cli_Restore_Checklist", outcome.PostRestoreChecklistPath));
+                run.Complete(summary: $"{outcome.PerTargetReports.Sum(r => r.FilesWritten):N0} files restored from {outcome.Manifest.Hostname}");
             }
             catch (FileNotFoundException ex)
             {
@@ -89,6 +92,10 @@ public static class RestoreCommand
             {
                 Console.Error.WriteLine(Loc.F("Cli_Restore_ErrGeneric", ex.Message));
                 Environment.ExitCode = 3;
+            }
+            finally
+            {
+                run.Complete(Environment.ExitCode != 0 ? RunStatus.Failed : null);
             }
         }, fromOption, yesOption, targetUserOption, ignoreVersionOption, includeOption, skipOption);
 

@@ -13,6 +13,14 @@ public static class Program
 {
     private const int AttachParentProcess = -1;
 
+    /// <summary>
+    /// True when the CLI runs in a terminal. Without one (Task Scheduler,
+    /// a shortcut) runs are labelled "scheduled" in the Logs tab.
+    /// </summary>
+    public static bool HasConsole { get; private set; }
+
+    public static string CliOrigin => HasConsole ? "cli" : "scheduled";
+
     [STAThread]
     public static int Main(string[] args)
     {
@@ -28,7 +36,13 @@ public static class Program
         // the parent terminal's console if there is one; otherwise allocate
         // our own so exit code propagates and output is visible.
         EnsureConsoleForCli();
-        return MainCliAsync(args).GetAwaiter().GetResult();
+        Log.Information(
+            "AgentPortable {Version} command line ({Origin}): {Args}",
+            typeof(Program).Assembly.GetName().Version, CliOrigin, string.Join(' ', args));
+        var exit = MainCliAsync(args).GetAwaiter().GetResult();
+        Log.Information("Exit code {Exit}", exit);
+        Log.CloseAndFlush();
+        return exit;
     }
 
     /// <summary>
@@ -81,6 +95,7 @@ public static class Program
     {
         if (AttachConsole(AttachParentProcess))
         {
+            HasConsole = true;
             // Redirect managed Console streams to the real console so our
             // output mixes cleanly with whatever the parent shell prints.
             // UTF-8 so localized output (Hungarian accents) survives legacy
@@ -113,15 +128,17 @@ public static class Program
             "logs");
         Directory.CreateDirectory(logDir);
 
+        // Everything goes to the file, details included: a scheduled backup
+        // has no window, so the file is where its story is told. Structured
+        // per-run files (logs\runs) are written by RunLog next to it.
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Information()
+            .MinimumLevel.Debug()
             .WriteTo.File(
                 Path.Combine(logDir, "claudeportable-.log"),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 30,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
                 formatProvider: CultureInfo.InvariantCulture)
-            .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture)
             .CreateLogger();
     }
 }

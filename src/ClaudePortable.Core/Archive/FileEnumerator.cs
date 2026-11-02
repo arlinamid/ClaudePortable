@@ -39,7 +39,8 @@ public static class FileEnumerator
         string absoluteRoot,
         string archivePrefix,
         ExclusionGlob exclusions,
-        ICollection<BackupLink>? links = null)
+        ICollection<BackupLink>? links = null,
+        EnumerationStats? stats = null)
     {
         if (!Directory.Exists(absoluteRoot))
         {
@@ -73,9 +74,13 @@ public static class FileEnumerator
                 if (child is DirectoryInfo subdir)
                 {
                     // Probe with a trailing slash: only globs that exclude a
-                    // whole subtree ("**/Cache/**") match a bare directory.
-                    var dirExcluded = exclusions.IsExcluded(archivePath + "/")
-                        || exclusions.IsExcluded(relativeToSource + "/");
+                    // whole subtree ("**/Cache/**") match a bare directory,
+                    // and only when no "!" glob re-includes something inside.
+                    // Globs are matched against the archive path only: every
+                    // glob is either prefix-scoped or starts with "**/", and
+                    // matching the source-relative path as well would let a
+                    // generic glob override a prefix-scoped re-include.
+                    var dirExcluded = exclusions.IsDirectoryPruned(archivePath + "/");
 
                     if (TryGetLinkTarget(subdir) is { } target)
                     {
@@ -90,16 +95,43 @@ public static class FileEnumerator
                     {
                         pending.Push(subdir.FullName);
                     }
+                    else
+                    {
+                        stats?.PrunedDirectories.Add(archivePath + "/");
+                    }
                     continue;
                 }
 
-                if (exclusions.IsExcluded(archivePath) || exclusions.IsExcluded(relativeToSource))
+                var length = child is FileInfo fi ? SafeLength(fi) : 0;
+                if (exclusions.IsExcluded(archivePath))
                 {
+                    if (stats is not null)
+                    {
+                        stats.ExcludedFiles.Add(archivePath);
+                        stats.ExcludedBytes += length;
+                    }
                     continue;
                 }
 
+                if (stats is not null)
+                {
+                    stats.Files++;
+                    stats.Bytes += length;
+                }
                 yield return new ArchiveEntry(archivePath, child.FullName);
             }
+        }
+    }
+
+    private static long SafeLength(FileInfo file)
+    {
+        try
+        {
+            return file.Length;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return 0;
         }
     }
 
@@ -123,4 +155,20 @@ public static class FileEnumerator
             return null;
         }
     }
+}
+
+/// <summary>What one enumeration found and left out, for the operation log.</summary>
+public sealed class EnumerationStats
+{
+    public int Files { get; set; }
+
+    public long Bytes { get; set; }
+
+    public long ExcludedBytes { get; set; }
+
+    /// <summary>Excluded files (archive paths).</summary>
+    public List<string> ExcludedFiles { get; } = [];
+
+    /// <summary>Folders skipped without being listed, e.g. ".../Cache/" (archive paths).</summary>
+    public List<string> PrunedDirectories { get; } = [];
 }

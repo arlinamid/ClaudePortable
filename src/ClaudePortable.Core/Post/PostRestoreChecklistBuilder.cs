@@ -38,33 +38,37 @@ public static class PostRestoreChecklistBuilder
         sb.AppendLine("- [ ] Start Claude Desktop and sign in once\n");
         sb.AppendLine("- [ ] Claude Code: run `claude login`\n");
         sb.AppendLine("- [ ] Re-authorize each connector (Gmail, Slack, GDrive, etc.)\n");
-        sb.AppendLine("- [ ] Run `claude plugin sync` to reload installed plugins\n");
         if (manifest.SourcePaths.Keys.Any(k => k.StartsWith("codex", StringComparison.OrdinalIgnoreCase)))
         {
             sb.AppendLine("- [ ] Codex: run `codex login` or sign in once in the Codex app (`auth.json` is never backed up)\n");
             sb.AppendLine("- [ ] Codex: start it once so it re-downloads its runtimes, plugin cache and Windows sandbox setup\n");
         }
 
-        // Plugin reinstall hint
-        var pluginDir = Path.Combine(
-            Environment.ExpandEnvironmentVariables("%USERPROFILE%"),
-            ".claude", "plugins");
-        if (Directory.Exists(pluginDir))
+        // Dependencies outside the agent folders (MCP servers, hook scripts,
+        // local marketplaces, link targets): what came back, and what the
+        // user has to provide on this PC.
+        var restoredExternal = manifest.ExternalPaths.Where(e => e.ArchivePrefix is not null).ToList();
+        var missingExternal = manifest.ExternalPaths.Where(e => e.ArchivePrefix is null).ToList();
+        if (restoredExternal.Count > 0)
         {
-            var plugins = Directory.GetDirectories(pluginDir).Select(Path.GetFileName).Where(n => !string.IsNullOrEmpty(n)).ToList();
-            if (plugins.Count > 0)
+            sb.AppendLine("\n## External folders from the backup\n");
+            sb.AppendLine("Folders outside the agent folders that their settings use. They were restored where nothing existed yet; dependencies such as `node_modules` or `.venv` are not in the backup, so reinstall them (`npm install`, `pip install -r requirements.txt`, ...):\n");
+            foreach (var e in restoredExternal)
             {
-                sb.AppendLine("\n## Plugin Reinstallation\n");
-                sb.AppendLine(CultureInfo.InvariantCulture, $"Found {plugins.Count} plugin(s) in `.claude/plugins/`. Run `claude plugin install <name>` for each:\n");
-                foreach (var p in plugins.Take(20))
-                {
-                    sb.AppendLine(CultureInfo.InvariantCulture, $"- [ ] `{p}`");
-                }
-                if (plugins.Count > 20)
-                {
-                    sb.AppendLine(CultureInfo.InvariantCulture, $"- ... and {plugins.Count - 20} more\n");
-                }
+                var git = e.GitRemote is null ? string.Empty : $" (restored without its git history; to get the repository back: `git clone {e.GitRemote}`)";
+                sb.AppendLine(CultureInfo.InvariantCulture, $"- [ ] `{e.Path}` — used by {string.Join("; ", e.ReferencedBy)}{git}");
             }
+            sb.AppendLine();
+        }
+        if (missingExternal.Count > 0)
+        {
+            sb.AppendLine("\n## Provide on this PC\n");
+            sb.AppendLine("The agents' settings refer to these, but they were not backed up. Install or copy them, or update the setting:\n");
+            foreach (var e in missingExternal)
+            {
+                sb.AppendLine(CultureInfo.InvariantCulture, $"- [ ] `{e.Path}` — {e.SkipReason} (used by {string.Join("; ", e.ReferencedBy)})");
+            }
+            sb.AppendLine();
         }
 
         // Safety backups
@@ -107,7 +111,7 @@ public static class PostRestoreChecklistBuilder
         // Troubleshooting
         sb.AppendLine("## Troubleshooting\n");
         sb.AppendLine("- **Chat history empty:** Check Claude Desktop version. Mismatch with backup version means chat history migration is not guaranteed.\n");
-        sb.AppendLine("- **Plugins not loading:** Run `claude plugin install <name>` manually for each plugin from `.claude/plugins/`.\n");
+        sb.AppendLine("- **Plugins not loading:** Installed plugins are restored with their files; if one still fails, reinstall it with `claude plugin install <name>@<marketplace>`.\n");
         sb.AppendLine("- **Connectors not working:** Re-authorize. Tokens are intentionally not backed up.\n");
 
         // Scope note
@@ -133,7 +137,6 @@ public static class PostRestoreChecklistBuilder
             - [ ] Start Claude Desktop and sign in once
             - [ ] Claude Code: run `claude login`
             - [ ] Re-authorize each connector (Gmail, Slack, GDrive, etc.)
-            - [ ] Run `claude plugin sync` to reload installed plugins
             - [ ] Codex (if included): run `codex login` or sign in once in the Codex app
 
             ## Safety Backups
@@ -142,7 +145,7 @@ public static class PostRestoreChecklistBuilder
 
             ## Troubleshooting
             - **Chat history empty:** Check the Claude Desktop version. A mismatch with the backup version means chat-history migration is not guaranteed.
-            - **Plugins not loading:** Run `claude plugin install <name>` for each plugin in `.claude/plugins/`.
+            - **Plugins not loading:** Installed plugins are restored with their files; if one still fails, reinstall it with `claude plugin install <name>@<marketplace>`.
             - **Connectors not working:** Re-authorize them. Tokens are intentionally not backed up.
 
             ## Scope Note

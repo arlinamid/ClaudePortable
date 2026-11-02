@@ -13,21 +13,25 @@ Windows desktop app (WPF + CLI) that backs up and restores your AI coding agents
 
 | Category | Location | Notes |
 |---|---|---|
-| Claude Desktop state | `%APPDATA%\Claude` (incl. IndexedDB, Local Storage, preferences, MCP config, installed extensions) | Reparse-point-aware: on Store installs the redirect to `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\...` is followed transparently, with a direct-path fallback when the reparse lies. |
-| Claude Desktop version | Read via `Get-AppxPackage` | Stored in the manifest; restore warns/blocks on major-version mismatch. |
+| Claude Desktop state | `%APPDATA%\Claude` (incl. IndexedDB, Local Storage, preferences, MCP config, installed extensions, Code-tab session metadata, the Cowork VM's `sessiondata.vhdx`) | Works for every edition: the claude.ai download (`Claude` MSIX), the Microsoft Store build (`AnthropicPBC.Claude`) and the legacy per-user installer. Older builds that redirect AppData into `%LOCALAPPDATA%\Packages\<package>\LocalCache\...` are resolved by wildcard. Left out: the Claude Code / VM binaries Claude Desktop downloads itself (`claude-code\`, `claude-code-vm\`, the VM image in `vm_bundles\`), logs, GPU caches, and device identity / pairing files (`ant-did`, `remote-control-state.json`, `ssh-remote-server-state.json`, ...). |
+| Claude Desktop (3rd-party inference) | `%APPDATA%\Claude-3p` | Profile of Claude Desktop in Bedrock / Vertex / gateway mode, when present. |
+| Claude Desktop version + edition | Per-user package registry (no PowerShell, no admin) | Stored in the manifest with every installed Claude / Codex app. Restore informs when the installed app is newer, warns or blocks only when it is older; versions of different editions are not compared. |
 | Cowork session metadata | `%APPDATA%\Claude\local-agent-mode-sessions\<guid>\...\.claude\` | Per-project memory (`CLAUDE.md`), settings, sessions, agents, plugins, skills. |
 | **Cowork project folders** | Auto-discovered from `userSelectedFolders` in each session's `local_*.json` | Every folder you opened in a Cowork session is backed up to its own archive prefix with sensible project-noise exclusions (`node_modules`, `.git/objects`, `.venv`, etc.). |
-| Claude Code user profile | `%USERPROFILE%\.claude` | Skills, plugins manifests, projects, sessions, settings, CLAUDE.md. |
-| Claude Code plugins / skills | Under `.claude\plugins\` and `.claude\skills\` | Content preserved. Remote plugin binary cache (`.remote-plugins/`) is excluded; a fresh `claude plugin sync` after restore refills it. |
-| **Codex CLI / app state** | `%CODEX_HOME%`, default `%USERPROFILE%\.codex` | `config.toml`, `AGENTS.md`, `sessions/` + `archived_sessions/` (conversation history), `skills/`, `rules/`, `agents/`, memories, `hooks.json`, `generated_images/`, and the sqlite state/thread-history databases. Excluded: `auth.json`, sandbox identity (`.sandbox*`, `cap_sid`, `installation_id`), downloaded binaries (`packages/`, `plugins/.plugin-appserver/`), plugin cache, logs, locks and temp folders. |
-| Codex desktop app | `%APPDATA%\Codex` (Store package `OpenAI.Codex_*`, resolved by wildcard) | Preferences, Local Storage. The embedded browser profile (`web/`, cookies and site logins) and Chromium caches are excluded. |
+| Claude Code user profile | `%CLAUDE_CONFIG_DIR%`, default `%USERPROFILE%\.claude` | Skills, installed plugins, projects, sessions, settings, CLAUDE.md. |
+| Claude Code global settings | `.claude.json` next to it | User-scoped MCP servers and per-project settings (allowed tools, project MCP servers, trust). **Merged** on restore: account / machine ids and server caches are never copied over (see below). |
+| Claude Code plugins / skills | Under `.claude\plugins\` and `.claude\skills\` | Installed plugins (`plugins\cache\`, where `installed_plugins.json` points) are included, so they work right after a restore. Remote plugin binary cache (`.remote-plugins/`) is excluded. |
+| **Codex CLI / app state** | `%CODEX_HOME%`, default `%USERPROFILE%\.codex` | `config.toml`, `AGENTS.md`, `sessions/` + `archived_sessions/` (conversation history), `skills/`, `rules/`, `agents/`, memories, `hooks.json` + `hooks/`, `automations/`, `.chatgpt-projects/`, installed plugins (`plugins/cache/`, minus the app-bundled ones), `generated_images/`, and the sqlite state/thread-history databases. Excluded: `auth.json`, sandbox and install identity (`.sandbox*`, `cap_sid`, `installation_id`, `chrome-native-hosts-v2.json`, `project-chatgpt-provisioning/`), downloaded binaries (`packages/`, `plugins/.plugin-appserver/`), `cache/`, logs, locks and temp folders. |
+| Codex desktop app | `%APPDATA%\Codex` (Store package `OpenAI.Codex_*`, resolved by wildcard; since 26.x the app runs as `ChatGPT.exe`) | The app's state from its profile `web\Codex` (Local State, Preferences, Local Storage, IndexedDB, artifact sessions). Its embedded browser (`codex-browser-app`: cookies, logins, history, autofill), downloaded browser components and Chromium caches are excluded. |
 | Shared agent skills | `%USERPROFILE%\.agents` | Skills installed with `npx skills add` live here and are linked into `.claude\skills`; Codex reads `.agents\skills` directly. |
-| Links (junctions / symlinks) | Any linked folder inside the sources above | Recorded in the manifest, **not** followed. See [Links](#links-junctions-and-symlinks). |
+| Links (junctions / symlinks) | Any linked folder inside the sources above | Recorded in the manifest, **not** followed; a target outside the backed-up folders is backed up as an external folder. See [Links](#links-junctions-and-symlinks). |
+| **External folders the settings use** | Read from the agents' own configuration | MCP server code, hook and status-line scripts, local plugin marketplaces and link targets that live outside the agent folders (e.g. `D:\tools\my-mcp`). See [External folders](#external-folders). |
+| SQLite databases | Everywhere above | Archived from a consistent snapshot (SQLite online backup), so transactions still in a `-wal` file are included even while Codex or a CLI is running. |
 
 Explicitly **not** in scope, on purpose:
 
 - OAuth refresh tokens, API keys, `config.json` with `oauth:tokenCache`, DPAPI blobs, Claude Code `.credentials.json`, Codex `auth.json` - user re-authenticates connectors, Claude Code (`claude login`) and Codex (`codex login`) after restore. On a same-machine restore the existing Claude Code / Codex credentials and the Codex sandbox setup are carried over from the safety backup, so you stay signed in.
-- `%USERPROFILE%\.claude.json` (Claude Code's global settings file next to the `.claude` folder, incl. user-scoped MCP servers). It also holds machine and account identifiers, so it is not restored over a fresh install; re-add user-scoped MCP servers with `claude mcp add --scope user`.
+- The identity part of `.claude.json` (`userID`, `machineID`, `oauthAccount`, `anonymousId`, ...) and its server-side caches. The rest of the file is backed up and merged into the target machine's `.claude.json`: the backup's MCP servers and project settings are added, the target keeps its own identity.
 - Active Cowork VM runtime state (processes, scheduled tasks) - only persistent artifacts.
 - Cloud-client upload status - AgentPortable writes to a folder, the sync client propagates. Zip destination is flagged if the folder carries `FILE_ATTRIBUTE_OFFLINE` / `RECALL_ON_DATA_ACCESS` so you know OneDrive / GDrive is behind.
 
@@ -64,18 +68,30 @@ Launch with no arguments (or `--gui`). Warm-dark UI in the Claude Desktop style,
 - **Targets** - folder list. Auto-discovers `<SyncClient>\ClaudePortable` on every recognised sync client (OneDrive Personal / Business, Dropbox, Google Drive Desktop), so a restore on a second machine picks up the first machine's backups without configuration. Manual add/remove available.
 - **Discovery** - read-only view of detected Claude + Codex paths and sync clients.
 - **Restore** - backup grid with per-row `STATUS` (`Synced` / `Cloud-only` / `Unreadable`) and `CONTENTS`, **What to restore** checkboxes (e.g. restore only Codex from a full backup; untouched parts of the machine stay as they are), `Restore from file...` escape hatch for a ZIP that is not in any configured target, and an **Advanced options** panel for overriding the target user profile (e.g. restoring a `sascha` backup onto a laptop with `sasch` as the user) and for the version-gate override.
-- **Logs** - last 500 log lines from the current session, rendered mono.
+- **Logs** - every backup, restore and path repair as a collapsible card, newest first: status (completed / with warnings / failed / cancelled / interrupted), how it was started (app, command line, scheduled task), time, duration and a one-line result. Inside a card the run is split into collapsible sections - *Running apps*, *Installed apps*, *What is backed up*, *Left out (details)*, *Links*, *External folders*, *Databases*, *ZIP archive*, *Retention*; for a restore *Backup details*, *Version check*, *Paths*, *Restored folders*, *Provide on this PC*. Sections with a warning or error open by themselves. Scheduled and command-line runs show up here too, so you can see what last night's backup did. *Copy this run* puts the run on the clipboard as text; *Open log folder* opens the files (see [Logging](#logging)).
 - **Schedule** - enumerates every Windows scheduled task on this machine via `schtasks.exe /Query /FO CSV /V`. AgentPortable-managed entries are flagged green (name starts with `ClaudePortable-` / `AgentPortable-`, or the author contains either name). Tasks that aren't managed but touch a Claude/Cowork/`.claude`/`.codex` path - including hand-written backup PowerShell scripts that compete with AgentPortable - are flagged orange. Per-row buttons run/disable/enable/delete the task and copy its raw XML to the clipboard. Use this to spot legacy `\Claude-Desktop-Backup`-style tasks that write loose-file backups into a long-path OneDrive folder and break sync.
+
+**Running apps.** A running app keeps writing while it is copied, so the backup can miss your latest chats or contain half-written stores. With **Close Claude Desktop and the Codex app during the backup** ticked on the Status page (the default), *Backup now* closes them - whole process trees, so the background helpers too: the Claude Code sessions Claude Desktop runs, the Codex app-server and runtimes, even ones a crashed app left behind - and reopens them when the backup is done. Their Windows services (`CoworkVMService`, `CodexSandboxService`) are stopped with them and started again afterwards; normally no prompt appears, but if Windows refuses, AgentPortable asks for administrator rights (never in a scheduled run, which logs a warning instead). Unticked, it asks each time (close / back up anyway / cancel). Re-install the scheduled task after changing it; the task then runs `backup --close-apps`. Processes are recognised by where they were started from, not by name, so all editions are covered; AgentPortable never ends a process tree it runs inside of (e.g. started from a terminal in Claude Desktop) and says so instead. Codex and Claude Code CLI sessions are not closed for a backup (their data is append-only JSONL plus SQLite, which is snapshotted), but they are for a restore.
 
 A ProgressBar on the status bar appears for the duration of any backup or restore, showing the current phase (`Extracting archive`, `Writing cowork-projects/<hash>`, etc.) with file-level percentage. Both commands run on the thread pool so the window stays responsive during multi-GB operations. A running backup can be stopped with **Cancel** next to the progress bar; no partial ZIP is left behind.
 
 A tray icon keeps the app alive in the background; closing the window hides it, `Quit` in the tray menu actually exits.
+
+## Logging
+
+Two kinds of files in `%LOCALAPPDATA%\ClaudePortable\logs`, written by the GUI, the CLI and the scheduled task alike:
+
+- `claudeportable-<date>.log` - the full text log, one line per step with level and section, kept 30 days. It includes the detail the Logs tab keeps folded away: every excluded folder and file, every database snapshot, every closed process with its path, timings per phase.
+- `runs\<start>-<kind>-<pid>-<id>.jsonl` - one structured file per run (start record, entries with time / level / section / message, end record with status). The Logs tab is built from these; the newest 150 are kept.
+
+The CLI still prints its usual output; warnings also go to stderr with their section, e.g. `warning: [External folders] Not backed up: ...`. A full disk never fails a backup or restore because of logging.
 
 ## Accessibility
 
 The GUI targets **WCAG 2.1 AA** and is usable with a keyboard and screen readers (Narrator, NVDA, JAWS):
 
 - **Screen readers see every page.** All controls are in the Windows UI Automation tree with an accessible name: sidebar items, buttons, check boxes, text boxes (named after their visible label), grids, and the language selector. Page titles and section titles are exposed as level-1 / level-2 headings.
+- **Logs are navigable.** Every run card and section is an expand/collapse control with a spoken name that includes its status and warning count ("Backup D:\Backups, 2026-10-29 23:00, Completed with warnings, 1 warning"); warning and error lines are announced with their level.
 - **Status messages are announced.** The status bar and the Schedule status line are live regions, so a screen reader reads "Backup complete", errors and so on without moving focus.
 - **Contrast.** Text is at least 4.5:1 (body text 7:1 or more). Input outlines and focus rings are at least 3:1 against what surrounds them. The primary button's focus ring is drawn outside the coral fill so it contrasts with the page (8.7:1).
 - **Not by colour alone.** Scheduled tasks show a TYPE column (AgentPortable / Agent-related / Other) next to the coloured dot, and read-only status columns say Yes / No instead of showing disabled check boxes.
@@ -103,14 +119,15 @@ Strings live in `src/ClaudePortable.App/Localization/Strings.resx` (English, neu
 Same binary - if you pass arguments it attaches to the parent console.
 
 ```
-claudeportable discover                                # detected Claude / Codex paths + sync clients
-claudeportable backup   --to <folder> [--tier daily] [--include <groups>] [--skip <groups>]
-                                                       # create a backup ZIP (auto-rotates unless --no-rotate)
+claudeportable discover                                # also: installed app editions, running agent processes, external folders
+claudeportable backup   --to <folder> [--tier daily] [--include <groups>] [--skip <groups>] [--close-apps]
+                                                       # create a backup ZIP (auto-rotates unless --no-rotate);
+                                                       # --close-apps closes Claude Desktop / the Codex app and reopens them after
 claudeportable list     --in <folder> [--json]         # list backups
 claudeportable restore  --from <zip>  --yes [--target-user <path>] [--ignore-version-mismatch] [--include <groups>] [--skip <groups>]
 claudeportable rotate   --in <folder> [--daily 7] [--weekly 3] [--monthly 2]
 claudeportable repair-paths [--dry-run] [--yes] [--from <old profile>]  # point restored Codex / Claude Code data at this user's profile
-claudeportable schedule install|show|remove|emit       # Windows Task Scheduler integration (install/emit accept --include/--skip)
+claudeportable schedule install|show|remove|emit       # Windows Task Scheduler integration (install/emit accept --include/--skip/--close-apps)
 claudeportable schedule list [--all|--managed|--relevant] [--json]  # enumerate all scheduled tasks, flag Claude relevance
 claudeportable schedule disable|enable|run <name>       # toggle / trigger a scheduled task by full name
 ```
@@ -137,7 +154,7 @@ claudeportable restore --from <zip> --yes --include claude-code   # restore just
 
 Partial backups are named after their selection (`claude-backup_<ts>_<host>_codex_daily.zip`) and record it in `manifest.json` (`groups`). A restore only asks you to close the apps whose data it is actually writing: restoring Codex does not require quitting Claude Desktop, and the Claude Desktop version check only applies when Claude Desktop data is restored.
 
-Exit codes: `0` ok, `1` usage error, `2` precondition fail (destination unwritable, Claude Desktop or Codex running), `3` runtime error (I/O, invalid backup, version block).
+Exit codes: `0` ok, `1` usage error, `2` precondition fail (destination unwritable, an agent still running for a restore), `3` runtime error (I/O, invalid backup, version block).
 
 ### Example
 
@@ -170,7 +187,7 @@ The typical workflow across two machines:
 2. OneDrive syncs to the laptop.
 3. Laptop launches AgentPortable. Auto-discovery finds the ZIP in `<OneDrive>\ClaudePortable\`. The Status column tells you whether it is fully synced or still a cloud-only placeholder.
 4. If the laptop's Windows username differs, open **Advanced options** on the Restore tab and pick the target user profile (`C:\Users\<other-user>`). The restore engine rewrites every reference in JSON and TOML configs (and the filesystem destination) from the old username to the new.
-5. Claude Desktop must be closed on the laptop before restoring. If it is running, the app offers to close it. When the backup contains Codex data, the Codex app and any `codex` CLI sessions must be closed too.
+5. The agents whose data is restored must be closed on the laptop, background helpers included: Claude Desktop (with its Claude Code sessions), Claude Code CLI sessions, the Codex app and `codex` CLI sessions. The app lists what is running and offers to close it.
 6. Click **Restore selected snapshot**. Existing `.claude` and `%APPDATA%\Claude` content is moved aside to `<folder>_backup_<timestamp>` before the new data is written.
 7. After completion, `claude login` and `codex login` on the laptop and re-authorise any connectors - token caches were deliberately excluded.
 
@@ -187,6 +204,24 @@ Skill and plugin folders are often links: `npx skills add` links `.claude\skills
 - **Backup** records every linked folder (`links` in `manifest.json`: archive path + original target) and prints it (`link (not followed, recreated on restore): ...`). Links inside excluded folders (`node_modules` etc.) are ignored. A source folder that is itself a link (e.g. `.claude` junctioned to a dotfiles repo) is still backed up normally. OneDrive / cloud-files folders are reparse points too but not links, so they are backed up normally.
 - **Restore** recreates each link after all folders are written, when its target exists on the restore machine. Absolute targets under the old profile are re-rooted to the new one. Absolute local targets become junctions (no admin rights needed). Relative targets become symlinks when Developer Mode allows it, and junctions to the resolved path otherwise.
 - If the target does **not** exist (e.g. `D:\src\my-skill` was never cloned on the new machine), restore lists a warning with the exact `mklink /J` command to run once you have restored that folder.
+
+## External folders
+
+Agent setups often depend on folders outside the agent folders: an MCP server checked out under `D:\tools`, a hook script, a local plugin marketplace, a skill junctioned to its git checkout. AgentPortable finds them in the configuration the agents themselves read - nothing is assumed about where they are:
+
+| Read from | Sections |
+|---|---|
+| Claude Desktop `claude_desktop_config.json` | `mcpServers` |
+| Claude Code `settings.json`, `settings.local.json` | `hooks`, `statusLine`, `mcpServers`, `extraKnownMarketplaces` |
+| Claude Code `.claude.json` | `mcpServers` (user and per project) |
+| Claude Code `plugins/known_marketplaces.json` | local marketplace paths |
+| Codex `config.toml` | `[mcp_servers.*]` (command, args, env), `[marketplaces.*]`, `notify` |
+| Codex `hooks.json` | `hooks` |
+| Links inside any backed-up folder | link targets |
+
+For a script, its folder is backed up (the project folder when the script sits in `dist`, `build`, `src`, ...); a referenced folder is backed up whole. Each goes to `external/<hash>` in the ZIP, with project noise (`node_modules`, `.venv`, `.git`, caches) left out; a git checkout's `origin` URL is recorded instead of its history. A folder over 1 GB / 20,000 files is not archived automatically. Not followed: workspace lists (trusted folders, Codex `[projects]`, Claude Code projects) - those are your projects, not the setup. Not archived, but listed with the reason: runtimes (`python.exe`, `node.exe`, nvm, venvs, npm globals - reinstall them), single data files (they may hold credentials, like a cookie file), and paths that no longer exist. `claudeportable discover` shows the full list before you back up.
+
+On restore, an external folder is written only where nothing exists yet; a checkout already on the new PC is left alone. The post-restore checklist lists what came back, what to reinstall (`npm install`, `pip install`, ...), and what has to be provided by hand.
 
 ## Architecture
 
@@ -260,7 +295,7 @@ CI runs the same commands on `windows-latest` via `.github/workflows/ci.yml`. Th
 Local portable-exe build:
 
 ```powershell
-pwsh scripts/build-exe.ps1 -Version 0.4.0
+pwsh scripts/build-exe.ps1 -Version 0.5.0
 ```
 
 Local MSI build (needs the WiX dotnet tool):
@@ -268,7 +303,7 @@ Local MSI build (needs the WiX dotnet tool):
 ```powershell
 dotnet tool install --global wix --version 7.0.0
 wix eula accept wix7
-pwsh src/ClaudePortable.Installer/build-msi.ps1 -Version 0.4.0
+pwsh src/ClaudePortable.Installer/build-msi.ps1 -Version 0.5.0
 ```
 
 ## Known limitations

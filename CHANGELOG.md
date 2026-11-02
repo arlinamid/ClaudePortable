@@ -6,6 +6,85 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-02
+
+### Added
+
+- **Every Claude Desktop and Codex edition is detected**: the claude.ai
+  download (`Claude` MSIX), the Microsoft Store build (`AnthropicPBC.Claude`),
+  the legacy per-user installer, and the Codex app (`OpenAI.Codex`, now
+  `ChatGPT.exe`). Installs are read from the per-user package registry (no
+  PowerShell, no admin); `discover` lists them with edition and version, and
+  the manifest records all of them (`apps`, `claudeDesktopEdition`).
+- **Close running agents for a backup, reopen them afterwards.** Status page
+  setting (on by default), `backup --close-apps`, `schedule install
+  --close-apps`. Whole process trees are closed, so background helpers go
+  too (Claude Desktop's Claude Code sessions, the Codex app-server and
+  runtimes, also when a crashed Codex app left them behind). Processes are
+  recognised by install and data folder, not by name; AgentPortable never
+  ends a tree it runs inside of. The apps' LocalSystem services
+  (`CoworkVMService`, `CoworkVMServiceStore`, `CodexSandboxService`) are
+  stopped with their app - for a backup, restore or path repair - and started
+  again afterwards, asking for administrator rights (UAC) only where Windows
+  refuses and never in a scheduled run.
+- **External folders the agents' settings depend on** - MCP server code, hook
+  and status-line scripts, local plugin marketplaces, link targets outside
+  the agent folders - are found in the agents' own configuration and backed
+  up under `external/<hash>`. Restored only where nothing exists yet; runtimes
+  and data files that are referenced but not archived are listed in the
+  post-restore checklist. See the README's *External folders*.
+- **Claude Code's `.claude.json`** (user MCP servers, per-project settings) is
+  backed up and merged on restore, keeping the target machine's identity.
+- **Detailed, structured logs.** Backup, restore and path repair report
+  every step - installed editions, running apps closed and reopened (PID,
+  path, graceful or ended), each source with files / size / what was left
+  out, links, external folders, database snapshots, archive result with
+  SHA-256, retention, version check, path-rewrite statistics, per-folder
+  restore results and safety backups, timings per phase - grouped in
+  sections. The Logs tab shows each run as a collapsible card with
+  collapsible sections (warnings open by themselves), including scheduled
+  and command-line runs, which used to leave no trace in the log at all.
+  Runs are stored as `logs\runs\*.jsonl`; the text log now records
+  everything at debug level.
+- `CLAUDE_CONFIG_DIR` and Claude Desktop's third-party-inference profile
+  (`%APPDATA%\Claude-3p`) are honoured.
+
+### Fixed
+
+- **Backups lost recent Codex data**: SQLite write-ahead logs were excluded,
+  so transactions not yet checkpointed (e.g. 6 MB in `sqlite\codex-dev.db-wal`)
+  were missing. Databases are now archived from a consistent SQLite snapshot.
+- **Installed plugins were never backed up**: the case-insensitive
+  `**/Cache/**` exclusion also matched `plugins\cache`, where Claude Code and
+  Codex keep installed plugins. They are now included (minus the plugins
+  bundled with the Codex app).
+- **Codex app backups contained stale data**: since 26.x the app keeps its
+  state in `web\Codex`, which was excluded wholesale. Its app state is now
+  kept; its embedded browser profile and downloaded components are not.
+- **Restore no longer blocks after a Claude Desktop update**: the claude.ai
+  build jumped from 1.x to 4.x. A newer installed app is informational, an
+  older one warns (or blocks across major versions); Store and claude.ai
+  builds are numbered independently and are not compared.
+- The running-app checks before restore and path repair looked for processes
+  named `Claude` / `Codex`: they missed the Codex app (`ChatGPT.exe`) and
+  matched every Claude Code CLI (also `claude.exe`, e.g. in `.local\bin` or
+  npm), so a Claude Desktop restore was blocked by terminal sessions and the
+  app's "close Claude Desktop" step ended them. They now use the process
+  detection above, which tells Claude Desktop apart by install folder.
+- Prefix-scoped exclusions could hit files in other sources with the same
+  relative path (a project containing `codex/dotcodex/auth.json`).
+
+### Changed
+
+- Left out of Claude Desktop backups: the Claude Code / Cowork VM binaries it
+  downloads (`claude-code\`, `claude-code-vm\`, the VM image in
+  `vm_bundles\`; the VM's `sessiondata.vhdx` is kept), logs, GPU caches, and
+  device identity / pairing files (`ant-did`, `ant-device-registry.json`,
+  `remote-control-state.json`, `ssh-remote-server-state.json`,
+  `bridge-state.json`), which a same-machine restore carries over like
+  `config.json`. Codex: `cache\`, `chrome-native-hosts-v2.json`,
+  `project-chatgpt-provisioning\` (carried over on the same machine).
+
 ## [0.4.1] - 2026-10-09
 
 ### Fixed

@@ -38,19 +38,34 @@ public sealed class RestoreEngine : IRestoreEngine
     /// </summary>
     private static readonly Dictionary<string, string[]> MachineLocalCarryOver = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["codex/dotcodex"] = ["auth.json", "installation_id", "cap_sid", ".sandbox", ".sandbox-secrets"],
+        ["codex/dotcodex"] =
+        [
+            "auth.json", "installation_id", "cap_sid", ".sandbox", ".sandbox-secrets",
+            "chrome-native-hosts-v2.json", "project-chatgpt-provisioning", "project-chatgpt-pairing",
+        ],
         ["claude-code/dotclaude"] = [".credentials.json"],
+        ["claude-desktop/appdata"] =
+        [
+            "config.json", "ant-did", "ant-device-registry.json", "remote-control-state.json",
+            "ssh-remote-server-state.json", "bridge-state.json",
+        ],
+        ["claude-desktop/appdata-3p"] = ["config.json"],
     };
+
+    /// <summary>Archive prefix of Claude Code's global config file, which is merged instead of copied.</summary>
+    private const string ClaudeGlobalConfigPrefix = "claude-code/globalconfig";
 
     private readonly IPathRewriter _pathRewriter;
     private readonly IPathDiscovery _pathDiscovery;
     private readonly TimeProvider _clock;
+    private readonly IOperationLog _log;
 
-    public RestoreEngine(IPathRewriter pathRewriter, TimeProvider? clock = null, IPathDiscovery? pathDiscovery = null)
+    public RestoreEngine(IPathRewriter pathRewriter, TimeProvider? clock = null, IPathDiscovery? pathDiscovery = null, IOperationLog? log = null)
     {
         _pathRewriter = pathRewriter;
         _pathDiscovery = pathDiscovery ?? new WindowsPathDiscovery();
         _clock = clock ?? TimeProvider.System;
+        _log = log ?? NullOperationLog.Instance;
     }
 
     public async Task<RestoreOutcome> RestoreAsync(
@@ -58,13 +73,21 @@ public sealed class RestoreEngine : IRestoreEngine
         IProgress<OperationProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        var total = System.Diagnostics.Stopwatch.StartNew();
+        var detailsLog = _log.In(LogSections.BackupDetails);
+        var targetsLog = _log.In(LogSections.Targets);
+        var linksLog = _log.In(LogSections.Links);
+        _log.Info($"Restore started: {request.SourceZipPath}; groups {(request.Groups is null ? "all" : string.Join(", ", request.Groups))}; target profile {request.TargetUserProfile ?? "current user"}; ignore version mismatch: {request.IgnoreVersionMismatch}");
         if (!File.Exists(request.SourceZipPath))
         {
+            _log.Error($"Backup ZIP not found: {request.SourceZipPath}");
             throw new FileNotFoundException("Backup ZIP not found.", request.SourceZipPath);
         }
+        detailsLog.Info($"ZIP: {OperationLogExtensions.Bytes(new FileInfo(request.SourceZipPath).Length)}, modified {File.GetLastWriteTime(request.SourceZipPath):yyyy-MM-dd HH:mm}");
 
         if (!request.Confirmed)
         {
+            _log.Error("Restore was not confirmed");
             throw new InvalidOperationException(
                 "Restore requires explicit confirmation. Pass --yes on the CLI or set Confirmed=true.");
         }
@@ -74,64 +97,81 @@ public sealed class RestoreEngine : IRestoreEngine
         // Claude, and vice versa. Peek at the manifest before the
         // (potentially multi-GB) extraction so the user fails fast.
         var restoring = GroupsToRestore(TryPeekManifest(request.SourceZipPath), request.Groups);
-        if (restoring.Contains(SourceGroups.ClaudeDesktop))
+        _log.Info($"Groups to restore (selection and backup contents): {(restoring.Count == 0 ? "none" : string.Join(", ", SourceGroups.All.Where(restoring.Contains)))}");
+        var running = FindRunning(restoring);
+        if (running.Count > 0)
         {
-            var running = GetRunningProcesses("Claude");
-            if (running.Count > 0)
+            foreach (var p in running)
             {
-                throw new InvalidOperationException(
-                    $"Claude Desktop is running (PID {string.Join(", ", running)}). Close it before restoring; its open file handles will cause 'Access denied' errors on %LOCALAPPDATA%\\Claude and %APPDATA%\\Claude.");
+                _log.In(LogSections.RunningApps).Info($"{AgentProcesses.Describe(p.Kind)} PID {p.Process.Pid} {p.Process.Path}");
             }
-        }
-        if (restoring.Contains(SourceGroups.Codex))
-        {
-            var runningCodex = GetRunningProcesses("Codex");
-            if (runningCodex.Count > 0)
-            {
-                throw new InvalidOperationException(
-                    $"Codex is running (PID {string.Join(", ", runningCodex)}). Close the Codex app and any codex CLI sessions before restoring; they hold %USERPROFILE%\\.codex open.");
-            }
+            var message = $"Close these before restoring: {AgentProcesses.Summarize(running)}. Running agents keep the restored folders open ('Access denied') and write their old state back on exit. Background helpers count too: Claude Desktop's Claude Code sessions, the Codex app-server, codex / claude CLI sessions.";
+            _log.Error(message);
+            throw new InvalidOperationException(message);
         }
 
         var tempRoot = Path.Combine(Path.GetTempPath(), "ClaudePortable", $"restore-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempRoot);
+        var phase = System.Diagnostics.Stopwatch.StartNew();
 
         try
         {
             progress?.Report(new OperationProgress("Extracting archive"));
             await ExtractWithProgressAsync(request.SourceZipPath, tempRoot, progress, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
+            detailsLog.Info($"Extracted to {tempRoot} in {OperationLogExtensions.Duration(phase.Elapsed)}");
+            phase.Restart();
 
             var manifestPath = Path.Combine(tempRoot, "manifest.json");
             if (!File.Exists(manifestPath))
             {
+                _log.Error("Backup is missing manifest.json");
                 throw new InvalidDataException("Backup is missing manifest.json.");
             }
 
             var manifest = ManifestBuilder.Deserialize(await File.ReadAllTextAsync(manifestPath, cancellationToken).ConfigureAwait(false));
+            detailsLog.Info($"Made {manifest.CreatedAt:yyyy-MM-dd HH:mm} UTC on {manifest.Hostname} by {manifest.WindowsUser} with AgentPortable {manifest.ToolVersion} (schema {manifest.SchemaVersion}): {manifest.FileCount:N0} files, {OperationLogExtensions.Bytes(manifest.SizeBytes)}, groups {(manifest.Groups is null ? "all" : string.Join(", ", manifest.Groups))}");
+            foreach (var app in manifest.Apps ?? [])
+            {
+                detailsLog.Info($"App on the backup machine: {app.App} {app.Edition} {app.Version}");
+            }
 
-            var installedVersion = ClaudeDesktopVersionReader.TryRead();
-            var gate = VersionGating.Evaluate(manifest.ClaudeDesktopVersion, installedVersion);
+            var installed = ClaudeDesktopVersionReader.TryReadInstall();
+            var backupEdition = manifest.ClaudeDesktopEdition
+                ?? (manifest.ClaudeDesktopVersion is null ? null : AgentInstalls.LegacyClaudeEdition);
+            var gate = VersionGating.Evaluate(manifest.ClaudeDesktopVersion, backupEdition, installed?.Version, installed?.Edition);
+            _log.Write(
+                gate.Level is VersionGateLevel.Warn or VersionGateLevel.Block ? OperationLogLevel.Warning : OperationLogLevel.Info,
+                LogSections.VersionCheck,
+                $"Claude Desktop: backup {manifest.ClaudeDesktopVersion ?? "?"} ({backupEdition ?? "?"}), installed {installed?.Version ?? "none"} ({installed?.Edition ?? "-"}): {gate.Level} - {gate.Message}");
             if (gate.Level == VersionGateLevel.Block
                 && !request.IgnoreVersionMismatch
                 && restoring.Contains(SourceGroups.ClaudeDesktop))
             {
+                _log.Error("Restore stopped by the version check (override: --ignore-version-mismatch)");
                 throw new InvalidOperationException(gate.Message);
             }
 
             var newUserProfile = request.TargetUserProfile
                 ?? Environment.ExpandEnvironmentVariables("%USERPROFILE%");
             var oldUserProfile = manifest.UserProfile ?? InferSourceUserProfile(manifest) ?? newUserProfile;
+            _log.In(LogSections.Paths).Info($"User profile: {oldUserProfile} (backup) -> {newUserProfile} (here){(manifest.UserProfile is null ? " [backup profile inferred]" : string.Empty)}");
 
             // Paths inside configs, session files and SQLite state (Codex's
             // threads.rollout_path) move from the backup profile to this one;
             // so do Claude Code's path-derived project folder names.
             progress?.Report(new OperationProgress("Rewriting paths"));
-            _pathRewriter.Rewrite(tempRoot, oldUserProfile, newUserProfile);
+            var rewrite = _pathRewriter.Rewrite(tempRoot, oldUserProfile, newUserProfile);
+            _log.In(LogSections.Paths).Info($"Path rewrite: {rewrite.FilesScanned:N0} files scanned, {rewrite.FilesChanged:N0} changed, {rewrite.ReplacementsMade:N0} paths replaced ({OperationLogExtensions.Duration(phase.Elapsed)})");
             var projectFolderWarnings = ClaudeCodeProjectFolders.RenameForProfile(
                 Path.Combine(tempRoot, "claude-code", "dotclaude", "projects"),
                 oldUserProfile,
                 newUserProfile);
+            foreach (var w in projectFolderWarnings)
+            {
+                _log.In(LogSections.Paths).Warn(w);
+            }
+            phase.Restart();
 
             var now = _clock.GetUtcNow();
             var safetyBackups = new List<string>();
@@ -141,13 +181,21 @@ public sealed class RestoreEngine : IRestoreEngine
                 ? _pathDiscovery.Discover()
                 : Array.Empty<DiscoveredClaudePath>();
             var restorePlan = BuildRestorePlan(manifest, request, oldUserProfile, newUserProfile, liveSources);
+            targetsLog.Info($"Plan: {restorePlan.Count} target(s)");
+            foreach (var (archivePrefix, targetDir) in restorePlan)
+            {
+                var from = manifest.ArchiveTargets.TryGetValue(archivePrefix, out var original) ? original : "(legacy layout)";
+                targetsLog.Debug($"{archivePrefix} -> {targetDir} (backed up from {from})");
+            }
 
             foreach (var (archivePrefix, targetDir) in restorePlan)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var sourceDir = Path.Combine(tempRoot, archivePrefix.Replace('/', Path.DirectorySeparatorChar));
 
                 if (!Directory.Exists(sourceDir))
                 {
+                    targetsLog.Info($"{archivePrefix}: not in this backup, skipped");
                     perTargetReports.Add(new RestoreTargetReport(
                         archivePrefix,
                         targetDir,
@@ -158,28 +206,71 @@ public sealed class RestoreEngine : IRestoreEngine
                     continue;
                 }
 
+                if (archivePrefix.Equals(ClaudeGlobalConfigPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    var merged = RestoreClaudeGlobalConfig(sourceDir, targetDir, now);
+                    targetsLog.Write(
+                        merged.Warnings.Count > 0 ? OperationLogLevel.Warning : OperationLogLevel.Info,
+                        merged.FilesWritten > 0
+                            ? $"{archivePrefix}: merged into {targetDir} (machine ids kept{(merged.SafetyBackupPath is null ? ", no previous file" : $", previous file saved as {merged.SafetyBackupPath}")})"
+                            : $"{archivePrefix}: not merged - {string.Join("; ", merged.Warnings)}");
+                    perTargetReports.Add(merged);
+                    continue;
+                }
+
+                // External folders (MCP servers, hook scripts, marketplaces,
+                // link targets) are put back only where nothing exists yet:
+                // a checkout already on this PC is the user's, newer or not.
+                if (archivePrefix.StartsWith(SourceGroups.ExternalPrefix, StringComparison.OrdinalIgnoreCase)
+                    && Directory.Exists(targetDir))
+                {
+                    targetsLog.Info($"{archivePrefix}: external folder {targetDir} already exists here, left as it is");
+                    perTargetReports.Add(new RestoreTargetReport(
+                        archivePrefix,
+                        targetDir,
+                        SafetyBackedUp: false,
+                        SafetyBackupPath: null,
+                        FilesWritten: 0,
+                        Warnings: [$"External folder already exists on this PC; left as it is: {targetDir}"]));
+                    continue;
+                }
+
                 var warnings = new List<string>();
+                var targetWatch = System.Diagnostics.Stopwatch.StartNew();
 
                 progress?.Report(new OperationProgress($"Preserving current {archivePrefix}"));
                 var preserved = SafetyBackup.TryPreserveExisting(targetDir, now);
                 if (preserved.Error is not null)
                 {
                     warnings.Add(preserved.Error);
+                    targetsLog.Warn($"{archivePrefix}: {preserved.Error}");
                 }
                 if (preserved.MovedAside && preserved.BackupPath is not null)
                 {
                     safetyBackups.Add(preserved.BackupPath);
+                    targetsLog.Info($"{archivePrefix}: current folder moved aside to {preserved.BackupPath}");
+                }
+                else if (preserved.Error is null)
+                {
+                    targetsLog.Info($"{archivePrefix}: {targetDir} did not exist yet");
                 }
 
                 progress?.Report(new OperationProgress($"Writing {archivePrefix}"));
                 var (filesWritten, copyErrors) = CopyDirectoryResilient(sourceDir, targetDir, archivePrefix, progress);
                 warnings.AddRange(copyErrors);
+                foreach (var error in copyErrors)
+                {
+                    targetsLog.Warn($"{archivePrefix}: {error}");
+                }
 
                 if (preserved.MovedAside && preserved.BackupPath is not null)
                 {
-                    warnings.AddRange(CarryOverMachineLocal(archivePrefix, preserved.BackupPath, targetDir));
+                    warnings.AddRange(CarryOverMachineLocal(archivePrefix, preserved.BackupPath, targetDir, targetsLog));
                 }
 
+                targetsLog.Write(
+                    copyErrors.Count > 0 ? OperationLogLevel.Warning : OperationLogLevel.Info,
+                    $"{archivePrefix}: {filesWritten:N0} files written to {targetDir}{(copyErrors.Count > 0 ? $", {copyErrors.Count:N0} failed" : string.Empty)} ({OperationLogExtensions.Duration(targetWatch.Elapsed)})");
                 perTargetReports.Add(new RestoreTargetReport(
                     archivePrefix,
                     targetDir,
@@ -196,7 +287,19 @@ public sealed class RestoreEngine : IRestoreEngine
             for (var i = 0; i < perTargetReports.Count; i++)
             {
                 var report = perTargetReports[i];
+                var prefix = report.ArchivePrefix.TrimEnd('/') + "/";
+                var recorded = manifest.Links.Count(l => l.Path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
                 var linkWarnings = RecreateLinks(manifest.Links, report.ArchivePrefix, report.TargetFolder, oldUserProfile, newUserProfile);
+                if (recorded > 0)
+                {
+                    linksLog.Write(
+                        linkWarnings.Count > 0 ? OperationLogLevel.Warning : OperationLogLevel.Info,
+                        $"{report.ArchivePrefix}: {recorded} link(s) in the backup, {recorded - linkWarnings.Count} in place");
+                    foreach (var w in linkWarnings)
+                    {
+                        linksLog.Warn(w);
+                    }
+                }
                 if (report.ArchivePrefix.Equals("claude-code/dotclaude", StringComparison.OrdinalIgnoreCase))
                 {
                     linkWarnings.AddRange(projectFolderWarnings);
@@ -205,6 +308,11 @@ public sealed class RestoreEngine : IRestoreEngine
                 {
                     perTargetReports[i] = report with { Warnings = [.. report.Warnings, .. linkWarnings] };
                 }
+            }
+
+            foreach (var e in manifest.ExternalPaths.Where(e => e.ArchivePrefix is null))
+            {
+                _log.In(LogSections.ProvideHere).Info($"{e.Path} - {e.SkipReason} (used by {string.Join("; ", e.ReferencedBy)})");
             }
 
             var checklistDest = Path.Combine(
@@ -217,7 +325,19 @@ public sealed class RestoreEngine : IRestoreEngine
                 manifest, gate, safetyBackups, perTargetReports);
             await File.WriteAllTextAsync(checklistDest, checklistContent, cancellationToken).ConfigureAwait(false);
 
+            var totalWarnings = perTargetReports.Sum(r => r.Warnings.Count(w => !w.StartsWith("Not present", StringComparison.Ordinal)));
+            _log.Info($"Restore finished in {OperationLogExtensions.Duration(total.Elapsed)}: {perTargetReports.Sum(r => r.FilesWritten):N0} files, {safetyBackups.Count} safety backup(s), {totalWarnings} warning(s); checklist {checklistDest}");
             return new RestoreOutcome(manifest, safetyBackups, checklistDest, gate, perTargetReports);
+        }
+        catch (OperationCanceledException)
+        {
+            _log.Warn($"Restore cancelled after {OperationLogExtensions.Duration(total.Elapsed)}");
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            _log.Error($"Restore failed after {OperationLogExtensions.Duration(total.Elapsed)}: {ex.GetType().Name}: {ex.Message}");
+            throw;
         }
         finally
         {
@@ -244,7 +364,7 @@ public sealed class RestoreEngine : IRestoreEngine
 
         foreach (var (archivePrefix, originalPath) in manifest.ArchiveTargets)
         {
-            if (!SourceGroups.IsSelected(SourceGroups.ForArchivePrefix(archivePrefix), request.Groups))
+            if (!SourceGroups.IsSelected(SourceGroups.ForArchivePrefix(archivePrefix, manifest), request.Groups))
             {
                 continue;
             }
@@ -485,7 +605,7 @@ public sealed class RestoreEngine : IRestoreEngine
         }
     }
 
-    private static List<string> CarryOverMachineLocal(string archivePrefix, string safetyBackupPath, string targetDir)
+    private static List<string> CarryOverMachineLocal(string archivePrefix, string safetyBackupPath, string targetDir, IOperationLog log)
     {
         var warnings = new List<string>();
         if (!MachineLocalCarryOver.TryGetValue(archivePrefix, out var items))
@@ -502,6 +622,7 @@ public sealed class RestoreEngine : IRestoreEngine
                 if (File.Exists(from) && !File.Exists(to))
                 {
                     File.Copy(from, to);
+                    log.Info($"{archivePrefix}: kept this PC's {item} (credentials / machine identity, not in backups)");
                 }
                 else if (Directory.Exists(from) && !Directory.Exists(to))
                 {
@@ -511,6 +632,7 @@ public sealed class RestoreEngine : IRestoreEngine
                         Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
                         File.Copy(file, dest);
                     }
+                    log.Info($"{archivePrefix}: kept this PC's {item} folder (credentials / machine identity, not in backups)");
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -522,15 +644,51 @@ public sealed class RestoreEngine : IRestoreEngine
         return warnings;
     }
 
-    private static IReadOnlyList<int> GetRunningProcesses(string processName)
+    private static IReadOnlyList<AgentProcess> FindRunning(IReadOnlySet<string> restoring)
     {
         try
         {
-            return Process.GetProcessesByName(processName).Select(p => p.Id).ToList();
+            return AgentProcesses.Find(AgentProcesses.KindsToClose(restoring, AgentOperation.Restore));
         }
-        catch (InvalidOperationException)
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            return Array.Empty<int>();
+            return Array.Empty<AgentProcess>();
+        }
+    }
+
+    /// <summary>
+    /// Merge the backed-up .claude.json into this machine's (see
+    /// <see cref="ClaudeGlobalConfigMerger"/>); the current file is kept as
+    /// ".claude.json.backup_&lt;timestamp&gt;" next to it.
+    /// </summary>
+    private static RestoreTargetReport RestoreClaudeGlobalConfig(string sourceDir, string targetFile, DateTimeOffset now)
+    {
+        var warnings = new List<string>();
+        var source = Directory.EnumerateFiles(sourceDir, "*.json").FirstOrDefault();
+        if (source is null)
+        {
+            return new RestoreTargetReport(ClaudeGlobalConfigPrefix, targetFile, false, null, 0, NotInBackupWarning);
+        }
+
+        string? safetyCopy = null;
+        try
+        {
+            string? existing = null;
+            if (File.Exists(targetFile))
+            {
+                existing = File.ReadAllText(targetFile);
+                safetyCopy = $"{targetFile}.backup_{now.UtcDateTime.ToString("yyyy-MM-dd-HHmmss", System.Globalization.CultureInfo.InvariantCulture)}";
+                File.Copy(targetFile, safetyCopy, overwrite: true);
+            }
+            var merged = ClaudeGlobalConfigMerger.Merge(File.ReadAllText(source), existing);
+            Directory.CreateDirectory(Path.GetDirectoryName(targetFile)!);
+            File.WriteAllText(targetFile, merged);
+            return new RestoreTargetReport(ClaudeGlobalConfigPrefix, targetFile, safetyCopy is not null, safetyCopy, 1, warnings);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
+        {
+            warnings.Add($"Could not merge Claude Code's global config into '{targetFile}': {ex.Message}");
+            return new RestoreTargetReport(ClaudeGlobalConfigPrefix, targetFile, safetyCopy is not null, safetyCopy, 0, warnings);
         }
     }
 

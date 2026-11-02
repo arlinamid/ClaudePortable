@@ -44,7 +44,48 @@ public class ExclusionGlobTests
     [InlineData("codex/dotcodex/.sandbox-secrets/key", true)]
     [InlineData("codex/dotcodex/.sandbox-bin/codex.exe", true)]
     [InlineData("codex/dotcodex/packages/standalone/codex.exe", true)]
-    [InlineData("codex/dotcodex/plugins/cache/foo/plugin.json", true)]
+    [InlineData("codex/dotcodex/plugins/cache/foo/plugin.json", false)]
+    [InlineData("codex/dotcodex/plugins/cache/local-playground/heartstrings/.codex-plugin/plugin.json", false)]
+    [InlineData("codex/dotcodex/plugins/cache/openai-bundled/chrome/26.1/extension-host.exe", true)]
+    [InlineData("codex/dotcodex/plugins/.remote-plugin-install-staging/x.zip", true)]
+    [InlineData("codex/dotcodex/cache/codex_apps_tools/a.json", true)]
+    [InlineData("codex/dotcodex/chrome-native-hosts-v2.json", true)]
+    [InlineData("codex/dotcodex/project-chatgpt-provisioning/7a87.json", true)]
+    [InlineData("codex/dotcodex/sqlite/codex-dev.db", false)]
+    [InlineData("codex/dotcodex/automations/daily/automation.toml", false)]
+    [InlineData("codex/dotcodex/.chatgpt-projects/g-p-1/AGENTS.md", false)]
+    [InlineData("codex/dotcodex/hooks/continue_after_quota.py", false)]
+    [InlineData("codex/dotcodex/mcp/pexels/server.py", false)]
+    [InlineData("codex/dotcodex/mcp/pexels/.venv/Lib/site.py", true)]
+    // Claude Code: installed plugins are kept (they used to fall under
+    // the case-insensitive "**/Cache/**").
+    [InlineData("claude-code/dotclaude/plugins/cache/anthropic-agent-skills/claude-api/ca45/SKILL.md", false)]
+    [InlineData("claude-code/dotclaude/plugins/cache/mp/plugin/1.0/node_modules/x/index.js", false)]
+    [InlineData("claude-code/dotclaude/plugins/installed_plugins.json", false)]
+    [InlineData("claude-code/globalconfig/.claude.json", false)]
+    // Claude Desktop 4.x: device identity, bundled binaries, VM image, logs.
+    [InlineData("claude-desktop/appdata/ant-did", true)]
+    [InlineData("claude-desktop/appdata/ant-device-registry.json", true)]
+    [InlineData("claude-desktop/appdata/remote-control-state.json", true)]
+    [InlineData("claude-desktop/appdata/ssh-remote-server-state.json", true)]
+    [InlineData("claude-desktop/appdata/bridge-state.json", true)]
+    [InlineData("claude-desktop/appdata/lockfile", true)]
+    [InlineData("claude-desktop/appdata/claude-code/2.1.309/9078/claude.exe", true)]
+    [InlineData("claude-desktop/appdata/claude-code-vm/2.1.309/claude", true)]
+    [InlineData("claude-desktop/appdata/claude-code-sessions/a/b/local_1.json", false)]
+    [InlineData("claude-desktop/appdata/vm_bundles/claudevm.bundle/rootfs.vhdx", true)]
+    [InlineData("claude-desktop/appdata/vm_bundles/claudevm.bundle/.rootfs.vhdx.origin", true)]
+    [InlineData("claude-desktop/appdata/vm_bundles/claudevm.bundle/vmlinuz", true)]
+    [InlineData("claude-desktop/appdata/vm_bundles/warm/2a76/rootfs.vhdx", true)]
+    [InlineData("claude-desktop/appdata/vm_bundles/claudevm.bundle/sessiondata.vhdx", false)]
+    [InlineData("claude-desktop/appdata/logs/main.log", true)]
+    [InlineData("claude-desktop/appdata/GrShaderCache/data_0", true)]
+    [InlineData("claude-desktop/appdata/git-worktrees.json", false)]
+    [InlineData("claude-desktop/appdata/ccd-session-presets.json", false)]
+    [InlineData("claude-desktop/appdata/side-session-notes/local_1/notes.md", false)]
+    [InlineData("claude-desktop/appdata/rpm/bb/89/plugin_01/manifest.json", false)]
+    [InlineData("claude-desktop/appdata-3p/config.json", true)]
+    [InlineData("claude-desktop/appdata-3p/claude_desktop_config.json", false)]
     [InlineData("codex/dotcodex/plugins/.plugin-appserver/codex.exe", true)]
     [InlineData("codex/dotcodex/logs_2.sqlite", true)]
     [InlineData("codex/dotcodex/sqlite/logs_2.sqlite-wal", true)]
@@ -67,6 +108,20 @@ public class ExclusionGlobTests
     [InlineData("codex/dotcodex/generated_images/img.png", false)]
     [InlineData("codex/dotcodex/.codex-global-state.json", false)]
     [InlineData("codex-desktop/appdata/web/Codex/Default/Cookies", true)]
+    // Codex app 26.x profile (web/Codex): app state kept, browser dropped.
+    [InlineData("codex-desktop/appdata/web/Codex/Local State", false)]
+    [InlineData("codex-desktop/appdata/web/Codex/Default/Preferences", false)]
+    [InlineData("codex-desktop/appdata/web/Codex/Default/Local Storage/leveldb/019693.ldb", false)]
+    [InlineData("codex-desktop/appdata/web/Codex/Default/Local Storage/leveldb/LOCK", true)]
+    [InlineData("codex-desktop/appdata/web/Codex/Default/IndexedDB/app_0.indexeddb.leveldb/000003.log", false)]
+    [InlineData("codex-desktop/appdata/web/Codex/browser-sidebar-page-states.json", false)]
+    [InlineData("codex-desktop/appdata/web/Codex/artifact-sessions/store/a.json", false)]
+    [InlineData("codex-desktop/appdata/web/Codex/Default/Web Data", true)]
+    [InlineData("codex-desktop/appdata/web/Codex/Default/History", true)]
+    [InlineData("codex-desktop/appdata/web/Codex/Default/Cache/Cache_Data/f_1", true)]
+    [InlineData("codex-desktop/appdata/web/Codex/codex-browser-app/Local Storage/leveldb/1.ldb", true)]
+    [InlineData("codex-desktop/appdata/web/Codex/WidevineCdm/4.10/manifest.json", true)]
+    [InlineData("codex-desktop/appdata/web/Codex/lockfile", true)]
     [InlineData("codex-desktop/appdata/Cache/Cache_Data/f_000001", true)]
     [InlineData("codex-desktop/appdata/sentry/scope_v3.json", true)]
     [InlineData("codex-desktop/appdata/Local Storage/leveldb/000003.log", false)]
@@ -77,6 +132,35 @@ public class ExclusionGlobTests
     public void IsExcluded_MatchesExpectedPolicy(string path, bool expected)
     {
         Assert.Equal(expected, Defaults.IsExcluded(path));
+    }
+
+    [Fact]
+    public void ReInclude_LastMatchWins()
+    {
+        var glob = new ExclusionGlob(["a/**", "!a/keep/**", "**/LOCK"]);
+
+        Assert.True(glob.IsExcluded("a/x.txt"));
+        Assert.False(glob.IsExcluded("a/keep/x.txt"));
+        Assert.True(glob.IsExcluded("a/keep/LOCK"));
+        Assert.False(glob.IsExcluded("b/x.txt"));
+    }
+
+    [Theory]
+    [InlineData("codex-desktop/appdata/web/", false)]
+    [InlineData("codex-desktop/appdata/web/Codex/", false)]
+    [InlineData("codex-desktop/appdata/web/Codex/Default/", false)]
+    [InlineData("codex-desktop/appdata/web/Codex/Default/Local Storage/", false)]
+    [InlineData("codex-desktop/appdata/web/Codex/Default/Cache/", true)]
+    [InlineData("codex-desktop/appdata/web/Codex/WidevineCdm/", true)]
+    [InlineData("codex-desktop/appdata/web/Codex/codex-browser-app/", true)]
+    [InlineData("codex/dotcodex/plugins/cache/", false)]
+    [InlineData("codex/dotcodex/plugins/cache/openai-bundled/", true)]
+    [InlineData("claude-code/dotclaude/plugins/cache/", false)]
+    [InlineData("claude-desktop/appdata/Cache/", true)]
+    [InlineData("claude-desktop/appdata/claude-code/", true)]
+    public void DirectoryPruning_RespectsReIncludes(string directory, bool pruned)
+    {
+        Assert.Equal(pruned, Defaults.IsDirectoryPruned(directory));
     }
 
     [Fact]

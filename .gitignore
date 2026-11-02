@@ -43,3 +43,4 @@ src/ClaudePortable.Installer/staging/
 dist/
 *-portable.exe
 *-portable.exe.sha256
+/scripts/

@@ -13,7 +13,10 @@ public static class SourceLayout
     [
         ("claudeDesktopAppData", "claude-desktop/appdata"),
         ("claudeDesktopLocalAppData", "claude-desktop/localappdata"),
+        ("claudeDesktop3pAppData", "claude-desktop/appdata-3p"),
         ("claudeCodeUserProfile", "claude-code/dotclaude"),
+        // A single file (.claude.json), archived as <prefix>/.claude.json.
+        ("claudeCodeGlobalConfig", "claude-code/globalconfig"),
         ("codexUserProfile", "codex/dotcodex"),
         ("codexDesktopAppData", "codex-desktop/appdata"),
         ("agentsUserProfile", "agents/dotagents"),

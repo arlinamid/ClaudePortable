@@ -55,6 +55,9 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
     /// <summary>The "What to back up" selection from the Status page; null = everything.</summary>
     public Func<IReadOnlySet<string>?>? BackupGroupsProvider { get; set; }
 
+    /// <summary>Whether the scheduled backup closes the desktop apps first (Status page setting).</summary>
+    public Func<bool>? CloseAppsProvider { get; set; }
+
     private string _installTime = "23:00";
 
     public string InstallTime
@@ -101,7 +104,7 @@ public sealed class ScheduledTasksViewModel : ViewModelBase
             var spec = new ScheduleSpec(
                 TaskName: taskName,
                 ExecutablePath: exe,
-                Arguments: ["backup", "--to", targetFolder, .. ClaudePortable.App.Commands.GroupOptions.ToArguments(groups)],
+                Arguments: ClaudePortable.App.Commands.ScheduleCommand.BackupArguments(targetFolder, groups, CloseAppsProvider?.Invoke() ?? false),
                 DailyStart: at,
                 Description: Loc.F("Cli_Schedule_TaskDescription", targetFolder));
 
