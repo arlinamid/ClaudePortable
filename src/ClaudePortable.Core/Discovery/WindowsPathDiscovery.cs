@@ -20,39 +20,69 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
     // Store). Since 4.x both write %APPDATA%\Claude directly (the package
     // declares unvirtualizedResources) and it is no longer a reparse point;
     // older builds still need the Packages fallbacks. The legacy Squirrel
-    // installer always used %APPDATA%\Claude. All variants share one folder.
-    private static readonly (string Key, string[] Candidates, string Source, bool IsFile)[] KnownPaths =
+    // installer always used %APPDATA%\Claude.
+    //
+    // Since 4.16xxx (2026-10) the packaged app moves its data folder out of
+    // the package, to %LOCALAPPDATA%\Claude-Data\<package family, lower
+    // case> (e.g. claude_pzs8sxrjxfjjc). It renames the old folder there and
+    // leaves only a 0-byte "lockfile" behind in %APPDATA%\Claude or the
+    // package's LocalCache\Roaming\Claude, so a folder merely existing does
+    // not mean it holds the data: the Claude Desktop rows only accept a
+    // folder that contains one of DesktopDataMarkers, and fall back to the
+    // first existing one when none does.
+    private static readonly string[] DesktopDataMarkers =
+    [
+        "Local State",
+        "config.json",
+        "claude_desktop_config.json",
+        "claude-code-sessions",
+        "local-agent-mode-sessions",
+        "Local Storage",
+        "IndexedDB",
+    ];
+
+    private static readonly (string Key, string[] Candidates, string Source, bool IsFile, string[]? Markers)[] KnownPaths =
     [
         (
             "claudeDesktopAppData",
             new[]
             {
+                @"%LOCALAPPDATA%\Claude-Data\claude_*",
+                @"%LOCALAPPDATA%\Claude-Data\anthropicpbc.claude_*",
                 @"%APPDATA%\Claude",
                 @"%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude",
                 @"%LOCALAPPDATA%\Packages\AnthropicPBC.Claude_*\LocalCache\Roaming\Claude",
             },
-            "Claude Desktop (claude.ai, Store or legacy install), verified 2026-10-29",
-            false
+            "Claude Desktop (claude.ai, Store or legacy install; Claude-Data since 4.16xxx), verified 2026-11-05",
+            false,
+            DesktopDataMarkers
         ),
         // Claude Desktop in third-party inference mode (Bedrock / Vertex /
-        // gateway) keeps its own profile next to the regular one.
+        // gateway) keeps its own profile next to the regular one. Current
+        // builds keep it in %LOCALAPPDATA%\Claude-3p (moved there from
+        // %APPDATA%\Claude-3p on first launch).
         (
             "claudeDesktop3pAppData",
             new[]
             {
+                @"%LOCALAPPDATA%\Claude-3p",
                 @"%APPDATA%\Claude-3p",
+                @"%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Local\Claude-3p",
+                @"%LOCALAPPDATA%\Packages\AnthropicPBC.Claude_*\LocalCache\Local\Claude-3p",
                 @"%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude-3p",
                 @"%LOCALAPPDATA%\Packages\AnthropicPBC.Claude_*\LocalCache\Roaming\Claude-3p",
             },
-            "Claude Desktop third-party inference profile",
-            false
+            "Claude Desktop third-party inference profile, verified 2026-11-05",
+            false,
+            DesktopDataMarkers
         ),
         // CLAUDE_CONFIG_DIR moves both the .claude folder and .claude.json.
         (
             "claudeCodeUserProfile",
             new[] { @"%CLAUDE_CONFIG_DIR%", @"%USERPROFILE%\.claude" },
             "Spec 1.1 + verified 2026-04-22",
-            false
+            false,
+            null
         ),
         // Claude Code's global settings: user-scoped MCP servers and the
         // per-project settings (allowed tools, project MCP servers, trust).
@@ -62,7 +92,8 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
             "claudeCodeGlobalConfig",
             new[] { @"%CLAUDE_CONFIG_DIR%\.claude.json", @"%USERPROFILE%\.claude.json" },
             "Claude Code global config, verified 2026-10-29",
-            true
+            true,
+            null
         ),
         // NOTE: there is intentionally no "coworkSessions" entry here.
         // The original Spec 1.1 guess of %USERPROFILE%\.cowork was never
@@ -85,7 +116,8 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
                 @"%LOCALAPPDATA%\Packages\AnthropicPBC.Claude_*\LocalCache\Local\Claude",
             },
             "Spec 1.1 + Store-app reparse fallback",
-            false
+            false,
+            null
         ),
         // OpenAI Codex. The CLI, the IDE extension and the Codex desktop
         // app all share one state root: %CODEX_HOME%, defaulting to
@@ -101,7 +133,8 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
                 @"%USERPROFILE%\.codex",
             },
             "Codex CLI/desktop state root, verified 2026-10-29",
-            false
+            false,
+            null
         ),
         // Codex desktop (Electron, Store-packaged as OpenAI.Codex_<publisherId>;
         // since 26.x the app is branded ChatGPT and runs as ChatGPT.exe).
@@ -118,7 +151,8 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
                 @"%LOCALAPPDATA%\Packages\OpenAI.Codex_*\LocalCache\Roaming\Codex",
             },
             "Codex desktop Store-app, verified 2026-10-29",
-            false
+            false,
+            null
         ),
         // Cross-agent skill store. `npx skills add` installs skills here and
         // links them into each agent's own folder (~\.claude\skills\<name>
@@ -129,32 +163,74 @@ public sealed class WindowsPathDiscovery : IPathDiscovery
             "agentsUserProfile",
             new[] { @"%USERPROFILE%\.agents" },
             "Shared agent skills store (npx skills, Codex user skills)",
-            false
+            false,
+            null
         ),
     ];
 
     public IReadOnlyList<DiscoveredClaudePath> Discover()
     {
         return KnownPaths
-            .Select(kp =>
-            {
-                string? first = null;
-                foreach (var rel in kp.Candidates)
-                {
-                    var expanded = ExpandCandidate(rel);
-                    if (expanded is null)
-                    {
-                        continue;
-                    }
-                    first ??= expanded;
-                    if (kp.IsFile ? SafeFileExists(expanded) : SafeDirectoryExists(expanded))
-                    {
-                        return new DiscoveredClaudePath(kp.Key, expanded, true, kp.Source);
-                    }
-                }
-                return new DiscoveredClaudePath(kp.Key, first ?? string.Empty, false, kp.Source);
-            })
+            .Select(kp => Resolve(kp.Key, kp.Candidates, kp.Source, kp.IsFile, kp.Markers))
             .ToList();
+    }
+
+    /// <summary>
+    /// Pick the first candidate that exists. With <paramref name="markers"/>,
+    /// prefer the first existing folder that contains one of them (the app's
+    /// live data folder over a husk it left behind when it moved its data),
+    /// then the first existing folder. When nothing exists, report the first
+    /// candidate that resolved to a concrete path (no unmatched wildcard), so
+    /// a restore onto a fresh machine writes where the app will look.
+    /// </summary>
+    internal static DiscoveredClaudePath Resolve(string key, IReadOnlyList<string> candidates, string source, bool isFile, IReadOnlyList<string>? markers)
+    {
+        string? first = null;
+        string? firstExisting = null;
+        foreach (var rel in candidates)
+        {
+            var expanded = ExpandCandidate(rel);
+            if (expanded is null)
+            {
+                continue;
+            }
+            if (!expanded.Contains('*', StringComparison.Ordinal))
+            {
+                first ??= expanded;
+            }
+            if (!(isFile ? SafeFileExists(expanded) : SafeDirectoryExists(expanded)))
+            {
+                continue;
+            }
+            if (markers is null || markers.Count == 0 || HasAnyMarker(expanded, markers))
+            {
+                return new DiscoveredClaudePath(key, expanded, true, source);
+            }
+            firstExisting ??= expanded;
+        }
+        return firstExisting is not null
+            ? new DiscoveredClaudePath(key, firstExisting, true, source)
+            : new DiscoveredClaudePath(key, first ?? string.Empty, false, source);
+    }
+
+    private static bool HasAnyMarker(string folder, IReadOnlyList<string> markers)
+    {
+        foreach (var marker in markers)
+        {
+            var path = Path.Combine(folder, marker);
+            try
+            {
+                if (File.Exists(path) || Directory.Exists(path))
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // An unreadable entry does not count as a marker.
+            }
+        }
+        return false;
     }
 
     /// <summary>

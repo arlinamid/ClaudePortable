@@ -81,6 +81,9 @@ public static class DefaultExclusions
         "claude-desktop/appdata/vm_bundles/*/smol-bin.vhdx",
         "claude-desktop/appdata/vm_bundles/*/initrd",
         "claude-desktop/appdata/vm_bundles/*/vmlinuz",
+        // The downloaded, still compressed copies of the same image files
+        // (rootfs.vhdx.zst alone is ~1.3 GB).
+        "claude-desktop/appdata/vm_bundles/*/*.zst",
         "claude-desktop/appdata/vm_bundles/*/.*.origin",
         "claude-desktop/appdata/logs/**",
         "claude-desktop/appdata/sentry/**",

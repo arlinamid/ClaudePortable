@@ -69,6 +69,76 @@ public class PathPortabilityTests
     }
 
     [Fact]
+    public void Resolve_PrefersFolderWithDataOverLeftBehindHusk()
+    {
+        // Claude Desktop 4.16xxx moves its data to %LOCALAPPDATA%\Claude-Data\<family>
+        // and leaves the old folder with only a lockfile in it.
+        var root = Path.Combine(Path.GetTempPath(), $"cp-res-{Guid.NewGuid():N}");
+        var husk = Path.Combine(root, "Roaming", "Claude");
+        var moved = Path.Combine(root, "Claude-Data", "claude_pzs8sxrjxfjjc");
+        Directory.CreateDirectory(husk);
+        File.WriteAllBytes(Path.Combine(husk, "lockfile"), []);
+        Directory.CreateDirectory(Path.Combine(moved, "claude-code-sessions"));
+        try
+        {
+            var found = WindowsPathDiscovery.Resolve(
+                "claudeDesktopAppData",
+                [husk, Path.Combine(root, "Claude-Data", "claude_*")],
+                "test",
+                isFile: false,
+                markers: ["Local State", "claude-code-sessions"]);
+
+            Assert.True(found.Exists);
+            Assert.Equal(moved, found.Path);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Resolve_FallsBackToFirstExistingFolderWithoutMarkers()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"cp-res-{Guid.NewGuid():N}");
+        var existing = Path.Combine(root, "Roaming", "Claude");
+        Directory.CreateDirectory(existing);
+        try
+        {
+            var found = WindowsPathDiscovery.Resolve(
+                "claudeDesktopAppData",
+                [Path.Combine(root, "Claude-Data", "claude_*"), existing],
+                "test",
+                isFile: false,
+                markers: ["Local State"]);
+
+            Assert.True(found.Exists);
+            Assert.Equal(existing, found.Path);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Resolve_MissingEverywhereReportsFirstConcretePathNotWildcard()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"cp-res-{Guid.NewGuid():N}");
+        var roaming = Path.Combine(root, "Roaming", "Claude");
+
+        var found = WindowsPathDiscovery.Resolve(
+            "claudeDesktopAppData",
+            [Path.Combine(root, "Claude-Data", "claude_*"), roaming],
+            "test",
+            isFile: false,
+            markers: ["Local State"]);
+
+        Assert.False(found.Exists);
+        Assert.Equal(roaming, found.Path);
+    }
+
+    [Fact]
     public void ExpandCandidate_SkipsUnsetEnvironmentVariable()
     {
         Assert.Null(WindowsPathDiscovery.ExpandCandidate($"%CP_TEST_UNSET_{Guid.NewGuid():N}%"));

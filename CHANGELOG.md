@@ -6,6 +6,27 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-05
+
+### Fixed
+
+- **Claude Desktop 4.16xxx data was not backed up.** The packaged app now
+  moves its data folder (Code tab sessions, Cowork sessions, the Cowork VM's
+  `sessiondata.vhdx`, settings) to `%LOCALAPPDATA%\Claude-Data\<package
+  family>` and leaves only a lock file in `%APPDATA%\Claude` or the
+  package's `LocalCache\Roaming\Claude`. Backups picked that husk (logged as
+  "1 files, 0 B"), so the Code tab's projects and sessions never reached the
+  new PC. Discovery now looks in `Claude-Data` first and only accepts a
+  Claude Desktop folder that actually holds app data; the third-party
+  profile is also looked up in `%LOCALAPPDATA%\Claude-3p`.
+- **The MSI installs the same single-file exe as the portable build.** The
+  loose publish folder it used to install (~500 files) failed to start on
+  some machines, where the .NET host kept asking for a runtime install while
+  the portable exe ran fine. The install folder and `claudeportable.exe`
+  keep their names, so scheduled tasks keep working.
+- The compressed Cowork VM image downloads (`vm_bundles/*/*.zst`, ~1.3 GB)
+  are no longer archived; like the unpacked image, the app fetches them again.
+
 ## [0.5.0] - 2026-11-02
 
 ### Added

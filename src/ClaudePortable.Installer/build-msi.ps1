@@ -24,12 +24,19 @@ $outputMsi = "AgentPortable-$Version.msi"
 Write-Host "[1/3] Cleaning staging..." -ForegroundColor Cyan
 if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
 
-Write-Host "[2/3] Publishing App self-contained..." -ForegroundColor Cyan
+Write-Host "[2/3] Publishing App self-contained (single file)..." -ForegroundColor Cyan
+# The same single-file exe as the portable build. The MSI used to install
+# the loose publish folder (~500 files, most of them unsigned DLLs); on some
+# machines that layout failed to start and the .NET host kept asking for a
+# runtime install, while the portable exe ran fine.
 dotnet publish $appCsproj `
   --configuration $Configuration `
   --runtime win-x64 `
   --self-contained true `
-  -p:PublishSingleFile=false `
+  -p:PublishSingleFile=true `
+  -p:EnableCompressionInSingleFile=true `
+  -p:IncludeAllContentForSelfExtract=true `
+  -p:DebugType=embedded `
   -p:InvariantGlobalization=false `
   -p:AssemblyVersion=$Version.0 `
   -p:FileVersion=$Version.0 `
@@ -53,5 +60,8 @@ if (-not $builtMsi) { throw "$outputMsi not found in bin output" }
 
 $target = Join-Path $root $outputMsi
 Copy-Item $builtMsi.FullName $target -Force
+$hash = (Get-FileHash -Path $target -Algorithm SHA256).Hash.ToLowerInvariant()
+"$hash  $outputMsi" | Out-File -FilePath "$target.sha256" -Encoding ascii
 Write-Host ""
 Write-Host "OK: $target" -ForegroundColor Green
+Write-Host "     SHA256: $hash" -ForegroundColor DarkGray

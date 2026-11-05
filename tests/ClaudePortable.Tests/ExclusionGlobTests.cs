@@ -77,6 +77,8 @@ public class ExclusionGlobTests
     [InlineData("claude-desktop/appdata/vm_bundles/claudevm.bundle/.rootfs.vhdx.origin", true)]
     [InlineData("claude-desktop/appdata/vm_bundles/claudevm.bundle/vmlinuz", true)]
     [InlineData("claude-desktop/appdata/vm_bundles/warm/2a76/rootfs.vhdx", true)]
+    [InlineData("claude-desktop/appdata/vm_bundles/claudevm.bundle/rootfs.vhdx.zst", true)]
+    [InlineData("claude-desktop/appdata/vm_bundles/claudevm.bundle/initrd.zst", true)]
     [InlineData("claude-desktop/appdata/vm_bundles/claudevm.bundle/sessiondata.vhdx", false)]
     [InlineData("claude-desktop/appdata/logs/main.log", true)]
     [InlineData("claude-desktop/appdata/GrShaderCache/data_0", true)]
