@@ -13,8 +13,8 @@ Windows desktop app (WPF + CLI) that backs up and restores your AI coding agents
 
 | Category | Location | Notes |
 |---|---|---|
-| Claude Desktop state | `%APPDATA%\Claude` (incl. IndexedDB, Local Storage, preferences, MCP config, installed extensions, Code-tab session metadata, the Cowork VM's `sessiondata.vhdx`) | Works for every edition: the claude.ai download (`Claude` MSIX), the Microsoft Store build (`AnthropicPBC.Claude`) and the legacy per-user installer. Older builds that redirect AppData into `%LOCALAPPDATA%\Packages\<package>\LocalCache\...` are resolved by wildcard. Left out: the Claude Code / VM binaries Claude Desktop downloads itself (`claude-code\`, `claude-code-vm\`, the VM image in `vm_bundles\`), logs, GPU caches, and device identity / pairing files (`ant-did`, `remote-control-state.json`, `ssh-remote-server-state.json`, ...). |
-| Claude Desktop (3rd-party inference) | `%APPDATA%\Claude-3p` | Profile of Claude Desktop in Bedrock / Vertex / gateway mode, when present. |
+| Claude Desktop state | `%LOCALAPPDATA%\Claude-Data\<package>` (Claude Desktop 4.16xxx and later), otherwise `%APPDATA%\Claude` (incl. IndexedDB, Local Storage, preferences, MCP config, installed extensions, Code-tab session metadata, the whole Cowork VM: `vm_bundles\` disks incl. `rootfs.vhdx` and `sessiondata.vhdx`, and `claude-code-vm\`) | Works for every edition: the claude.ai download (`Claude` MSIX), the Microsoft Store build (`AnthropicPBC.Claude`) and the legacy per-user installer. Older builds that redirect AppData into `%LOCALAPPDATA%\Packages\<package>\LocalCache\...` are resolved by wildcard. Left out: the Code tab's Claude Code builds Claude Desktop downloads itself (`claude-code\`), the VM update staging folder (`vm_bundles\warm\`), logs, GPU caches, and device identity / pairing files (`ant-did`, `remote-control-state.json`, `ssh-remote-server-state.json`, ...). |
+| Claude Desktop (3rd-party inference) | `%LOCALAPPDATA%\Claude-3p`, older builds `%APPDATA%\Claude-3p` | Profile of Claude Desktop in Bedrock / Vertex / gateway mode, when present. |
 | Claude Desktop version + edition | Per-user package registry (no PowerShell, no admin) | Stored in the manifest with every installed Claude / Codex app. Restore informs when the installed app is newer, warns or blocks only when it is older; versions of different editions are not compared. |
 | Cowork session metadata | `%APPDATA%\Claude\local-agent-mode-sessions\<guid>\...\.claude\` | Per-project memory (`CLAUDE.md`), settings, sessions, agents, plugins, skills. |
 | **Cowork project folders** | Auto-discovered from `userSelectedFolders` in each session's `local_*.json` | Every folder you opened in a Cowork session is backed up to its own archive prefix with sensible project-noise exclusions (`node_modules`, `.git/objects`, `.venv`, etc.). |
@@ -295,7 +295,7 @@ CI runs the same commands on `windows-latest` via `.github/workflows/ci.yml`. Th
 Local portable-exe build:
 
 ```powershell
-pwsh scripts/build-exe.ps1 -Version 0.5.0
+pwsh scripts/build-exe.ps1 -Version 0.5.2
 ```
 
 Local MSI build (needs the WiX dotnet tool):
@@ -303,7 +303,7 @@ Local MSI build (needs the WiX dotnet tool):
 ```powershell
 dotnet tool install --global wix --version 7.0.0
 wix eula accept wix7
-pwsh src/ClaudePortable.Installer/build-msi.ps1 -Version 0.5.0
+pwsh src/ClaudePortable.Installer/build-msi.ps1 -Version 0.5.2
 ```
 
 ## Known limitations

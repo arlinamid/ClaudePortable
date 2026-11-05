@@ -70,21 +70,18 @@ public static class DefaultExclusions
         "claude-desktop/appdata/remote-control-state.json",
         "claude-desktop/appdata/ssh-remote-server-state.json",
         "claude-desktop/appdata/bridge-state.json",
-        // Downloaded binaries Claude Desktop refetches on start: the Claude
-        // Code builds it runs for the Code tab (one folder per version,
-        // ~300 MB each), the VM-side build, and the Cowork VM image. The
-        // VM's own disk with session data (sessiondata.vhdx) is kept.
+        // The Claude Code builds Claude Desktop downloads for the Code tab
+        // (one folder per version, ~300 MB each); it refetches them on start.
+        //
+        // The Cowork VM is backed up whole: claude-code-vm (the build that
+        // runs inside the VM) and every file of vm_bundles/<bundle> - the
+        // disks (rootfs.vhdx, smol-bin.vhdx, sessiondata.vhdx), kernel and
+        // initrd, their .zst downloads and .origin records. The VM writes to
+        // rootfs.vhdx too (tools and packages installed in it), so it is not
+        // a pristine download that can simply be fetched again. Only the
+        // "warm" staging folder for the next update is left out.
         "claude-desktop/appdata/claude-code/**",
-        "claude-desktop/appdata/claude-code-vm/**",
         "claude-desktop/appdata/vm_bundles/warm/**",
-        "claude-desktop/appdata/vm_bundles/*/rootfs.vhdx",
-        "claude-desktop/appdata/vm_bundles/*/smol-bin.vhdx",
-        "claude-desktop/appdata/vm_bundles/*/initrd",
-        "claude-desktop/appdata/vm_bundles/*/vmlinuz",
-        // The downloaded, still compressed copies of the same image files
-        // (rootfs.vhdx.zst alone is ~1.3 GB).
-        "claude-desktop/appdata/vm_bundles/*/*.zst",
-        "claude-desktop/appdata/vm_bundles/*/.*.origin",
         "claude-desktop/appdata/logs/**",
         "claude-desktop/appdata/sentry/**",
         "claude-desktop/appdata/fcache",

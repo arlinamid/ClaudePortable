@@ -6,6 +6,18 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-05
+
+### Changed
+
+- **The Cowork VM is backed up whole.** Every file of `vm_bundles\<bundle>`
+  (`rootfs.vhdx`, `smol-bin.vhdx`, `sessiondata.vhdx`, kernel, initrd, their
+  `.zst` downloads and `.origin` records) and `claude-code-vm\` are now in
+  the backup; before, only `sessiondata.vhdx` was. The VM writes to
+  `rootfs.vhdx` too (tools and packages installed in it), so it cannot just
+  be downloaded again. This adds roughly 10 GB per backup. Only the update
+  staging folder `vm_bundles\warm\` is left out.
+
 ## [0.5.1] - 2026-11-05
 
 ### Fixed
@@ -24,9 +36,6 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   some machines, where the .NET host kept asking for a runtime install while
   the portable exe ran fine. The install folder and `claudeportable.exe`
   keep their names, so scheduled tasks keep working.
-- The compressed Cowork VM image downloads (`vm_bundles/*/*.zst`, ~1.3 GB)
-  are no longer archived; like the unpacked image, the app fetches them again.
-
 ## [0.5.0] - 2026-11-02
 
 ### Added
