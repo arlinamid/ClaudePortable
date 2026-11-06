@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Reflection;
 using ClaudePortable.App.Localization;
+using ClaudePortable.App.Logging;
 using System.Runtime.Versioning;
 using ClaudePortable.App.Ui.Services;
 using ClaudePortable.Core.Abstractions;
@@ -26,6 +27,7 @@ public sealed class MainViewModel : ViewModelBase
     private string _status = Loc.T("Vm_Ready");
     private string _targetUserProfileOverride = string.Empty;
     private bool _ignoreVersionMismatch;
+    private bool _closeAppsDuringBackup;
     private bool _isBusy;
     private string _progressMessage = string.Empty;
     private double _progressValue;
@@ -46,7 +48,7 @@ public sealed class MainViewModel : ViewModelBase
     public ScheduledTasksViewModel ScheduledTasks { get; } = new(new TaskSchedulerInstaller());
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Instance binding target for XAML.")]
-    public ObservableCollection<string> LogEntries => UiLogSink.Instance.Entries;
+    public LogsViewModel Logs => UiLogSink.Instance.Viewer;
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Instance binding target for XAML.")]
     public string AppVersionLabel
@@ -84,6 +86,23 @@ public sealed class MainViewModel : ViewModelBase
     {
         get => _ignoreVersionMismatch;
         set => SetField(ref _ignoreVersionMismatch, value);
+    }
+
+    /// <summary>
+    /// Close Claude Desktop / the Codex app (with their background helpers)
+    /// for a backup and reopen them afterwards, without asking. Persisted in
+    /// settings.json; also passed to the scheduled task as --close-apps.
+    /// </summary>
+    public bool CloseAppsDuringBackup
+    {
+        get => _closeAppsDuringBackup;
+        set
+        {
+            if (SetField(ref _closeAppsDuringBackup, value))
+            {
+                _settings.SaveCloseAppsDuringBackup(value);
+            }
+        }
     }
 
     public bool IsBusy
@@ -200,6 +219,7 @@ public sealed class MainViewModel : ViewModelBase
             UiLogSink.Instance.Append($"auto-discovered {discoveredCount} ClaudePortable folder(s) from sync clients.");
         }
 
+        _closeAppsDuringBackup = _settings.Load().CloseAppsDuringBackup ?? true;
         var savedGroups = _settings.LoadBackupGroups();
         foreach (var id in SourceGroups.All)
         {
@@ -229,9 +249,11 @@ public sealed class MainViewModel : ViewModelBase
 
         ScheduledTasks.ActiveTargetProvider = () => Targets.FirstOrDefault()?.Path;
         ScheduledTasks.BackupGroupsProvider = () => GroupToggle.ToSelection(BackupGroups);
+        ScheduledTasks.CloseAppsProvider = () => CloseAppsDuringBackup;
 
         Raise(nameof(ActiveTargetPath));
         _ = RefreshAsync();
+        _ = Logs.LoadHistoryAsync();
     }
 
     public void PickTargetProfile()
@@ -304,20 +326,27 @@ public sealed class MainViewModel : ViewModelBase
         }
         var groups = GroupToggle.ToSelection(BackupGroups);
         var target = Targets.First();
-        UiLogSink.Instance.Append(groups is null
-            ? $"backup starting -> {target.Path}"
-            : $"backup starting ({string.Join(", ", groups)}) -> {target.Path}");
+        var run = UiLogSink.Instance.BeginRun("backup", target.Path);
+        var closed = await CloseAgentsForBackupAsync(groups, run).ConfigureAwait(true);
+        if (closed is null)
+        {
+            run.Info("Cancelled before starting: running apps were not closed");
+            UiLogSink.Instance.EndRun(run, RunStatus.Cancelled);
+            Status = Loc.T("Vm_BackupCancelled");
+            return;
+        }
         Status = Loc.T("Vm_BackingUp");
         BeginBusy(Loc.T("Vm_StartingBackup"));
         var progress = CreateProgress();
-        var warnings = new UiLogWriter();
         using var cts = new CancellationTokenSource();
         SetBackupCts(cts);
+        RunStatus? finalStatus = null;
+        string? summary = null;
         try
         {
             var outcome = await Task.Run(async () =>
             {
-                var engine = new BackupEngine(new WindowsPathDiscovery(), new ZipArchiveWriter(warnings));
+                var engine = new BackupEngine(new WindowsPathDiscovery(), new ZipArchiveWriter(new OperationLogWriter(run)), log: run);
                 return await engine.CreateBackupAsync(
                         new BackupRequest(target.Path, RetentionTier.Daily, Groups: groups),
                         progress,
@@ -325,44 +354,95 @@ public sealed class MainViewModel : ViewModelBase
                     .ConfigureAwait(false);
             }, cts.Token).ConfigureAwait(true);
 
-            UiLogSink.Instance.Append($"backup done: {Path.GetFileName(outcome.ZipPath)} ({outcome.Manifest.FileCount} files, {outcome.Manifest.SizeBytes:N0} bytes)");
-            foreach (var (key, count) in outcome.FilesPerSource)
-            {
-                UiLogSink.Instance.Append($"  {key}: {count} files enumerated");
-            }
-            foreach (var link in outcome.Manifest.Links)
-            {
-                UiLogSink.Instance.Append($"  link (not followed, recreated on restore): {link.Path} -> {link.Target}");
-            }
-            foreach (var skipped in outcome.SkippedPaths)
-            {
-                UiLogSink.Instance.Append($"  skipped (not present on this machine): {skipped.Key} <- {skipped.Path}");
-            }
-
             ProgressMessage = Loc.T("Vm_RotatingRetention");
             ProgressIsIndeterminate = true;
             var report = await Task.Run(() => new RetentionManager().Rotate(new FolderTarget(target.Path))).ConfigureAwait(true);
-            UiLogSink.Instance.Append($"rotation: promoted={report.Promoted.Count} pruned={report.Pruned.Count}");
-            Status = warnings.LineCount == 0
+            RotationLog.Write(run, report);
+
+            var skippedFiles = run.WarningsIn(LogSections.Archive);
+            summary = $"{Path.GetFileName(outcome.ZipPath)}: {outcome.Manifest.FileCount:N0} files, {OperationLogExtensions.Bytes(outcome.Manifest.SizeBytes)}";
+            Status = skippedFiles == 0
                 ? Loc.T("Vm_BackupComplete")
-                : Loc.F("Vm_BackupCompleteSkipped", warnings.LineCount);
+                : Loc.F("Vm_BackupCompleteSkipped", skippedFiles);
         }
         catch (OperationCanceledException)
         {
-            UiLogSink.Instance.Append("backup cancelled by user; no ZIP was written.");
+            finalStatus = RunStatus.Cancelled;
             Status = Loc.T("Vm_BackupCancelled");
         }
         catch (Exception ex)
         {
-            UiLogSink.Instance.Append($"backup failed: {ex.Message}");
+            run.Error($"Backup failed: {ex.Message}");
+            finalStatus = RunStatus.Failed;
             Status = Loc.F("Vm_BackupFailed", ex.Message);
         }
         finally
         {
             SetBackupCts(null);
             EndBusy();
+            await RestartServicesAsync(closed, run).ConfigureAwait(true);
+            if (closed.Closed.Count > 0)
+            {
+                AgentProcesses.Reopen(closed.Closed, run);
+            }
+            UiLogSink.Instance.EndRun(run, finalStatus, summary);
         }
         await RefreshAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Before a backup: close the running desktop apps of the selected
+    /// groups when the setting says so or the user agrees. Returns what to
+    /// restart afterwards, or null when the user cancelled the backup.
+    /// </summary>
+    private async Task<CloseOutcome?> CloseAgentsForBackupAsync(IReadOnlySet<string>? groups, RunLog run)
+    {
+        var log = run.In(LogSections.RunningApps);
+        var running = AgentProcesses.Find(AgentProcesses.KindsToClose(groups, AgentOperation.Backup));
+        if (running.Count == 0)
+        {
+            log.Info("No Claude Desktop or Codex app running");
+            return CloseOutcome.None;
+        }
+
+        var close = CloseAppsDuringBackup;
+        if (!close)
+        {
+            var answer = System.Windows.MessageBox.Show(
+                Loc.F("Dlg_BackupAgentsText", AgentLabels.Summarize(running)),
+                Loc.T("Dlg_BackupAgentsTitle"),
+                System.Windows.MessageBoxButton.YesNoCancel,
+                System.Windows.MessageBoxImage.Question);
+            if (answer == System.Windows.MessageBoxResult.Cancel)
+            {
+                return null;
+            }
+            close = answer == System.Windows.MessageBoxResult.Yes;
+        }
+        if (!close)
+        {
+            log.Warn($"Backing up while running (chosen in the dialog): {AgentProcesses.Summarize(running)}");
+            return CloseOutcome.None;
+        }
+
+        BeginBusy(Loc.T("Vm_ClosingAgents"));
+        try
+        {
+            return await AgentProcesses.CloseAsync(running, TimeSpan.FromSeconds(5), log: run, allowElevation: true).ConfigureAwait(true);
+        }
+        finally
+        {
+            EndBusy();
+        }
+    }
+
+    /// <summary>Start the apps' services stopped by <see cref="AgentProcesses.CloseAsync"/> again (UAC prompt if they need it).</summary>
+    private static async Task RestartServicesAsync(CloseOutcome closed, RunLog run)
+    {
+        if (closed.StoppedServices.Count > 0)
+        {
+            await AgentServices.StartAsync(closed.StoppedServices, allowElevation: true, run).ConfigureAwait(true);
+        }
     }
 
     public void AddTarget()
@@ -480,33 +560,25 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        if (restoring.Contains(SourceGroups.ClaudeDesktop)
-            && !await EnsureClosedAsync("Claude", "Dlg_CloseClaudeText", "Dlg_CloseClaudeTitle").ConfigureAwait(true))
+        var run = UiLogSink.Instance.BeginRun("restore", displayName);
+        var closed = await EnsureAgentsClosedAsync(AgentProcesses.KindsToClose(restoring, AgentOperation.Restore), run).ConfigureAwait(true);
+        if (closed is null)
         {
-            Status = Loc.T("Vm_RestoreCancelledRunning");
-            return;
-        }
-        if (restoring.Contains(SourceGroups.Codex)
-            && !await EnsureClosedAsync("Codex", "Dlg_CloseCodexText", "Dlg_CloseCodexTitle").ConfigureAwait(true))
-        {
-            Status = Loc.T("Vm_RestoreCancelledRunningCodex");
+            UiLogSink.Instance.EndRun(run, RunStatus.Cancelled);
             return;
         }
 
         Status = Loc.T("Vm_Restoring");
-        UiLogSink.Instance.Append($"restore starting: {displayName}");
         BeginBusy(Loc.T("Vm_StartingRestore"));
         var progress = CreateProgress();
+        RunStatus? finalStatus = null;
+        string? summary = null;
         try
         {
             var targetOverride = string.IsNullOrWhiteSpace(TargetUserProfileOverride) ? null : TargetUserProfileOverride.Trim();
-            if (targetOverride is not null)
-            {
-                UiLogSink.Instance.Append($"using override target user profile: {targetOverride}");
-            }
             var outcome = await Task.Run(async () =>
             {
-                var engine = new RestoreEngine(new PathRewriter());
+                var engine = new RestoreEngine(new PathRewriter(), log: run);
                 return await engine.RestoreAsync(
                         new RestoreRequest(
                             zipPath,
@@ -518,35 +590,8 @@ public sealed class MainViewModel : ViewModelBase
                     .ConfigureAwait(false);
             }).ConfigureAwait(true);
 
-            // Dump what the backup claims to contain so the user sees whether
-            // appdata / localappdata / dotclaude / cowork were captured by the
-            // source machine's backup engine - this is the "why was nothing
-            // restored" diagnostic.
-            UiLogSink.Instance.Append(
-                $"manifest: host={outcome.Manifest.Hostname}, files={outcome.Manifest.FileCount}, " +
-                $"sizeBytes={outcome.Manifest.SizeBytes:N0}, sha256={outcome.Manifest.Sha256[..Math.Min(12, outcome.Manifest.Sha256.Length)]}...");
-            foreach (var (key, path) in outcome.Manifest.SourcePaths)
-            {
-                UiLogSink.Instance.Append($"  captured {key} <- {path}");
-            }
-
-            foreach (var report in outcome.PerTargetReports)
-            {
-                var status = report.FilesWritten == 0 && report.Warnings.Count == 1 && report.Warnings[0].StartsWith("Not present", StringComparison.Ordinal)
-                    ? "skipped"
-                    : report.SafetyBackedUp ? $"safety-backup: {report.SafetyBackupPath}" : "overlay";
-                UiLogSink.Instance.Append(
-                    $"  {report.ArchivePrefix}: {report.FilesWritten} files -> {report.TargetFolder} ({status})");
-                foreach (var warning in report.Warnings)
-                {
-                    UiLogSink.Instance.Append($"    warning: {warning}");
-                }
-            }
-
-            var totalWarnings = outcome.PerTargetReports.Sum(r => r.Warnings.Count);
-            UiLogSink.Instance.Append($"restore complete. safety backups: {outcome.SafetyBackups.Count}, warnings: {totalWarnings}");
-            UiLogSink.Instance.Append($"version gate: {outcome.VersionGate.Level} - {outcome.VersionGate.Message}");
-
+            var totalWarnings = outcome.PerTargetReports.Sum(r => r.Warnings.Count(w => !w.StartsWith("Not present", StringComparison.Ordinal)));
+            summary = $"{outcome.PerTargetReports.Sum(r => r.FilesWritten):N0} files restored from {outcome.Manifest.Hostname}; checklist {outcome.PostRestoreChecklistPath}";
             PostRestoreChecklistPath = outcome.PostRestoreChecklistPath;
             Status = totalWarnings == 0
                 ? Loc.F("Vm_RestoreCompleteChecklist", outcome.PostRestoreChecklistPath)
@@ -554,12 +599,19 @@ public sealed class MainViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            UiLogSink.Instance.Append($"restore failed: {ex.Message}");
+            // The engine has logged the details; make sure the run says it failed.
+            if (run.ErrorCount == 0)
+            {
+                run.Error($"Restore failed: {ex.Message}");
+            }
+            finalStatus = RunStatus.Failed;
             Status = Loc.F("Vm_RestoreFailed", ex.Message);
         }
         finally
         {
             EndBusy();
+            await RestartServicesAsync(closed, run).ConfigureAwait(true);
+            UiLogSink.Instance.EndRun(run, finalStatus, summary);
         }
         await RefreshAsync().ConfigureAwait(true);
     }
@@ -607,41 +659,44 @@ public sealed class MainViewModel : ViewModelBase
         });
     }
 
-    private static async Task<bool> EnsureClosedAsync(string processName, string textKey, string titleKey)
+    /// <summary>
+    /// Ask to close the running agents of the given kinds (whole process
+    /// trees, background helpers and services included) and close them.
+    /// Returns the services to start again afterwards; null, with the status
+    /// line set, when the user declined or something is still running.
+    /// </summary>
+    private async Task<CloseOutcome?> EnsureAgentsClosedAsync(IReadOnlySet<AgentProcessKind> kinds, RunLog run)
     {
-        var running = System.Diagnostics.Process.GetProcessesByName(processName);
-        if (running.Length == 0)
+        var log = run.In(LogSections.RunningApps);
+        var running = AgentProcesses.Find(kinds);
+        if (running.Count == 0)
         {
-            return true;
+            log.Info($"Nothing running that has to be closed ({string.Join(", ", kinds.Select(AgentProcesses.Describe))})");
+            return CloseOutcome.None;
         }
 
         var result = System.Windows.MessageBox.Show(
-            Loc.F(textKey, string.Join(", ", running.Select(p => p.Id))),
-            Loc.T(titleKey),
+            Loc.F("Dlg_CloseAgentsText", AgentLabels.Summarize(running)),
+            Loc.T("Dlg_CloseAgentsTitle"),
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning);
         if (result != System.Windows.MessageBoxResult.Yes)
         {
-            return false;
+            log.Info($"Cancelled: still running, user chose not to close {AgentProcesses.Summarize(running)}");
+            Status = Loc.F("Vm_CancelledAgentsRunning", AgentLabels.Summarize(running));
+            return null;
         }
 
-        foreach (var p in running)
+        var closed = await AgentProcesses.CloseAsync(running, TimeSpan.FromSeconds(5), log: run, allowElevation: true).ConfigureAwait(true);
+        var still = AgentProcesses.Find(kinds);
+        if (still.Count > 0)
         {
-            try
-            {
-                p.CloseMainWindow();
-                if (!p.WaitForExit(5000))
-                {
-                    p.Kill(entireProcessTree: true);
-                }
-            }
-            catch (InvalidOperationException) { }
-            catch (System.ComponentModel.Win32Exception) { }
+            log.Error($"Cancelled: could not close {AgentProcesses.Summarize(still)}");
+            Status = Loc.F("Vm_CancelledAgentsRunning", AgentLabels.Summarize(still));
+            await RestartServicesAsync(closed, run).ConfigureAwait(true);
+            return null;
         }
-
-        // Give Windows a beat to release handles + flush pending writes.
-        await Task.Delay(1500).ConfigureAwait(true);
-        return System.Diagnostics.Process.GetProcessesByName(processName).Length == 0;
+        return closed;
     }
 
     /// <summary>
@@ -652,12 +707,17 @@ public sealed class MainViewModel : ViewModelBase
     public async Task RepairProfilePathsAsync()
     {
         var current = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var run = UiLogSink.Instance.BeginRun("repair", current);
         BeginBusy(Loc.T("Vm_RepairScanning"));
         IReadOnlyList<(string Key, string Folder)> folders;
         IReadOnlyList<ProfilePathRepair.ForeignProfile> profiles;
         try
         {
             folders = ProfilePathRepair.AgentFolders(new WindowsPathDiscovery());
+            foreach (var (key, folder) in folders)
+            {
+                run.In(LogSections.Paths).Info($"Scanning {key}: {folder}");
+            }
             profiles = await Task.Run(() => ProfilePathRepair.Detect(folders.Select(f => f.Folder), current)).ConfigureAwait(true);
         }
         finally
@@ -667,9 +727,14 @@ public sealed class MainViewModel : ViewModelBase
 
         if (profiles.Count == 0)
         {
-            UiLogSink.Instance.Append($"repair-paths: no paths into other user profiles found (current: {current}).");
+            run.Info($"No paths into other user profiles found; everything already points to {current}");
+            UiLogSink.Instance.EndRun(run, RunStatus.Succeeded, "Nothing to repair");
             Status = Loc.F("Vm_RepairNothing", current);
             return;
+        }
+        foreach (var p in profiles)
+        {
+            run.In(LogSections.Paths).Info($"Found {p.Occurrences:N0} path(s) into {p.ProfileRoot}");
         }
 
         var list = string.Join(Environment.NewLine, profiles.Select(p => $"  {p.ProfileRoot}  ({p.Occurrences})"));
@@ -680,11 +745,14 @@ public sealed class MainViewModel : ViewModelBase
             System.Windows.MessageBoxImage.Question);
         if (confirm != System.Windows.MessageBoxResult.Yes)
         {
+            run.Info("Cancelled in the confirmation dialog");
+            UiLogSink.Instance.EndRun(run, RunStatus.Cancelled);
             return;
         }
-        if (!await EnsureClosedAsync("Codex", "Dlg_CloseCodexText", "Dlg_CloseCodexTitle").ConfigureAwait(true))
+        var closed = await EnsureAgentsClosedAsync(AgentProcesses.KindsToClose(null, AgentOperation.RepairPaths), run).ConfigureAwait(true);
+        if (closed is null)
         {
-            Status = Loc.T("Vm_RestoreCancelledRunningCodex");
+            UiLogSink.Instance.EndRun(run, RunStatus.Cancelled);
             return;
         }
 
@@ -697,18 +765,21 @@ public sealed class MainViewModel : ViewModelBase
         try
         {
             var result = await Task.Run(() => ProfilePathRepair.Repair(folders, profiles, current, backupRoot, progress)).ConfigureAwait(true);
-            UiLogSink.Instance.Append(
-                $"repair-paths: {string.Join(", ", profiles.Select(p => p.ProfileRoot))} -> {current}: " +
-                $"{result.FilesChanged} files, {result.ValuesChanged} paths changed; originals in {result.OriginalsBackupFolder ?? "(none changed)"}");
+            await RestartServicesAsync(closed, run).ConfigureAwait(true);
+            run.Info($"{string.Join(", ", profiles.Select(p => p.ProfileRoot))} -> {current}: {result.FilesChanged:N0} files, {result.ValuesChanged:N0} paths changed");
+            run.In(LogSections.Paths).Info($"Originals of the changed files: {result.OriginalsBackupFolder ?? "(none changed)"}");
             foreach (var w in result.Warnings)
             {
-                UiLogSink.Instance.Append($"  warning: {w}");
+                run.In(LogSections.Paths).Warn(w);
             }
+            UiLogSink.Instance.EndRun(run, summary: $"{result.ValuesChanged:N0} paths in {result.FilesChanged:N0} files");
             Status = Loc.F("Vm_RepairDone", result.ValuesChanged, result.FilesChanged);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            UiLogSink.Instance.Append($"repair-paths failed: {ex.Message}");
+            run.Error($"Path repair failed: {ex.Message}");
+            await RestartServicesAsync(closed, run).ConfigureAwait(true);
+            UiLogSink.Instance.EndRun(run, RunStatus.Failed);
             Status = Loc.F("Vm_RepairFailed", ex.Message);
         }
         finally

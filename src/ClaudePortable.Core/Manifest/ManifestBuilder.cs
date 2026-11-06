@@ -22,7 +22,10 @@ public static class ManifestBuilder
         IReadOnlyList<CoworkProjectFolder>? coworkProjects = null,
         IReadOnlyDictionary<string, string>? archiveTargets = null,
         IReadOnlyList<BackupLink>? links = null,
-        IReadOnlySet<string>? groups = null)
+        IReadOnlySet<string>? groups = null,
+        string? claudeDesktopEdition = null,
+        IReadOnlyList<BackupAppInfo>? apps = null,
+        IReadOnlyList<BackupExternalPath>? externalPaths = null)
     {
         var toolVersion = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
@@ -50,6 +53,8 @@ public static class ManifestBuilder
             Hostname = Environment.MachineName,
             WindowsUser = Environment.UserName,
             ClaudeDesktopVersion = claudeDesktopVersion,
+            ClaudeDesktopEdition = claudeDesktopEdition,
+            Apps = apps,
             RetentionTier = tier,
             SourcePaths = sourcePaths,
             ArchiveTargets = targets,
@@ -60,6 +65,7 @@ public static class ManifestBuilder
             ToolVersion = toolVersion,
             UserProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             Links = links ?? Array.Empty<BackupLink>(),
+            ExternalPaths = externalPaths ?? Array.Empty<BackupExternalPath>(),
             Groups = groups is null ? null : SourceGroups.All.Where(groups.Contains).ToList(),
         };
     }

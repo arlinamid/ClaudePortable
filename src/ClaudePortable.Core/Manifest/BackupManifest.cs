@@ -21,6 +21,7 @@ public sealed record BackupManifest
     private readonly Dictionary<string, string> _archiveTargets = new(StringComparer.OrdinalIgnoreCase);
     private readonly IReadOnlyList<string> _excludedPaths = Array.Empty<string>();
     private readonly IReadOnlyList<BackupLink> _links = Array.Empty<BackupLink>();
+    private readonly IReadOnlyList<BackupExternalPath> _externalPaths = Array.Empty<BackupExternalPath>();
 
     [JsonPropertyName("schemaVersion")]
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
@@ -36,6 +37,18 @@ public sealed record BackupManifest
 
     [JsonPropertyName("claudeDesktopVersion")]
     public string? ClaudeDesktopVersion { get; init; }
+
+    /// <summary>
+    /// Which Claude Desktop build wrote the data: "direct" (claude.ai
+    /// download), "store" (Microsoft Store) or "squirrel" (legacy installer).
+    /// Null in older backups, which only ever read the direct build.
+    /// </summary>
+    [JsonPropertyName("claudeDesktopEdition")]
+    public string? ClaudeDesktopEdition { get; init; }
+
+    /// <summary>Every Claude / Codex desktop install found on the backup machine.</summary>
+    [JsonPropertyName("apps")]
+    public IReadOnlyList<BackupAppInfo>? Apps { get; init; }
 
     [JsonPropertyName("claudeCodeVersion")]
     public string? ClaudeCodeVersion { get; init; }
@@ -113,6 +126,20 @@ public sealed record BackupManifest
         get => _links;
         init => _links = value ?? Array.Empty<BackupLink>();
     }
+
+    /// <summary>
+    /// Folders outside the agents' own folders that their configuration
+    /// refers to (MCP servers, hook scripts, local plugin marketplaces, link
+    /// targets). Entries with an archive prefix are in the ZIP; the others
+    /// were left out for the stated reason and are listed in the post-restore
+    /// checklist (runtimes to reinstall, files to copy by hand).
+    /// </summary>
+    [JsonPropertyName("externalPaths")]
+    public IReadOnlyList<BackupExternalPath> ExternalPaths
+    {
+        get => _externalPaths;
+        init => _externalPaths = value ?? Array.Empty<BackupExternalPath>();
+    }
 }
 
 /// <param name="Path">Archive path of the link itself, e.g. "codex/dotcodex/skills/my-skill".</param>
@@ -120,6 +147,27 @@ public sealed record BackupManifest
 public sealed record BackupLink(
     [property: JsonPropertyName("path")] string Path,
     [property: JsonPropertyName("target")] string Target);
+
+/// <param name="Path">Absolute path on the backup machine.</param>
+/// <param name="Groups">Source groups whose configuration refers to it.</param>
+/// <param name="ReferencedBy">Where the reference was found.</param>
+/// <param name="ArchivePrefix">"external/&lt;hash&gt;" when the folder is in the ZIP.</param>
+/// <param name="SkipReason">Why it is not in the ZIP; null when it is.</param>
+/// <param name="GitRemote">"origin" URL when the folder is a git checkout (its .git is not archived).</param>
+public sealed record BackupExternalPath(
+    [property: JsonPropertyName("path")] string Path,
+    [property: JsonPropertyName("groups")] IReadOnlyList<string> Groups,
+    [property: JsonPropertyName("referencedBy")] IReadOnlyList<string> ReferencedBy,
+    [property: JsonPropertyName("archivePrefix")] string? ArchivePrefix,
+    [property: JsonPropertyName("skipReason")] string? SkipReason,
+    [property: JsonPropertyName("gitRemote")] string? GitRemote = null);
+
+/// <param name="App">"claude-desktop" or "codex-desktop".</param>
+/// <param name="Edition">"direct", "store" or "squirrel".</param>
+public sealed record BackupAppInfo(
+    [property: JsonPropertyName("app")] string App,
+    [property: JsonPropertyName("edition")] string Edition,
+    [property: JsonPropertyName("version")] string Version);
 
 [JsonSourceGenerationOptions(
     WriteIndented = true,

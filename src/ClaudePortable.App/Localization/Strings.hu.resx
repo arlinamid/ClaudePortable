@@ -80,7 +80,7 @@
   <data name="Restore_IgnoreVersionMismatchHint" xml:space="preserve"><value>(a főverzió-blokkolás kihagyása; a csevegési előzmények sémája eltérhet)</value></data>
 
   <!-- Logs page -->
-  <data name="Logs_Caption" xml:space="preserve"><value>A munkamenet legutóbbi 500 sora. A napló csak a memóriában él — újraindításkor törlődik.</value></data>
+  <data name="Logs_Caption" xml:space="preserve"><value>Minden mentés, visszaállítás és útvonaljavítás – az ütemezett és parancssori futások is – egy-egy kártyán. Nyiss meg egy kártyát a részleteihez; a figyelmeztetést tartalmazó szakaszok maguktól kinyílnak. A teljes szöveges napló a naplómappában van.</value></data>
 
   <!-- Schedule page -->
   <data name="Schedule_Caption" xml:space="preserve"><value>Az erről a gépről látható ütemezett Windows-feladatok. Az AgentPortable által kezelt bejegyzések zölddel, a Claude, Cowork vagy Codex útvonalakat érintő idegen feladatok (pl. egy kézzel írt mentő PowerShell-szkript) narancssárgával jelennek meg. Ha máshol hoztál létre vagy töröltél feladatot, nyomd meg a Frissítés gombot.</value></data>
@@ -120,7 +120,6 @@
   <data name="Vm_BackupFailed" xml:space="preserve"><value>A mentés nem sikerült: {0}</value></data>
   <data name="Vm_Restoring" xml:space="preserve"><value>Visszaállítás folyamatban...</value></data>
   <data name="Vm_StartingRestore" xml:space="preserve"><value>Visszaállítás indítása</value></data>
-  <data name="Vm_RestoreCancelledRunning" xml:space="preserve"><value>Visszaállítás megszakítva – a Claude Desktop még fut.</value></data>
   <data name="Vm_RestoreCompleteChecklist" xml:space="preserve"><value>A visszaállítás elkészült. Ellenőrzőlista: {0}</value></data>
   <data name="Vm_RestoreCompleteWarnings" xml:space="preserve"><value>A visszaállítás elkészült {0} figyelmeztetéssel. Lásd a Naplók fület.</value></data>
   <data name="Vm_RestoreFailed" xml:space="preserve"><value>A visszaállítás nem sikerült: {0}</value></data>
@@ -150,10 +149,6 @@ A meglévő Claude adatok lehetőség szerint a &lt;mappa&gt;_backup_&lt;időbé
 
 Folytatod?</value></data>
   <data name="Dlg_ConfirmRestoreTitle" xml:space="preserve"><value>Visszaállítás megerősítése</value></data>
-  <data name="Dlg_CloseClaudeText" xml:space="preserve"><value>A Claude Desktop fut (PID {0}). A nyitott fájlkezelői „Hozzáférés megtagadva” hibákat okoznak a visszaállítás során.
-
-Bezárjam most a Claude Desktopot? (Igen = zárd be helyettem, Nem = visszaállítás megszakítása)</value></data>
-  <data name="Dlg_CloseClaudeTitle" xml:space="preserve"><value>Bezárjuk a Claude Desktopot?</value></data>
 
   <!-- Scheduled tasks view model -->
   <data name="Sched_ClickRefresh" xml:space="preserve"><value>Kattints a Frissítés gombra az ütemezett feladatok betöltéséhez.</value></data>
@@ -314,11 +309,6 @@ Ez végleges. Újra létrehozni csak az AgentPortable-ből telepítve vagy az XM
   <data name="Restore_WhatToRestoreHint" xml:space="preserve"><value>Csak a bejelölt részek állnak vissza, a gépen minden más érintetlen marad. Ami nincs a mentésben, kimarad.</value></data>
   <data name="Vm_NothingSelected" xml:space="preserve"><value>Nincs kijelölés – jelölj be legalább egy elemet.</value></data>
   <data name="Vm_RestoreNothingInBackup" xml:space="preserve"><value>A kiválasztott mentés egyik bejelölt elemet sem tartalmazza.</value></data>
-  <data name="Vm_RestoreCancelledRunningCodex" xml:space="preserve"><value>Visszaállítás megszakítva – a Codex még fut.</value></data>
-  <data name="Dlg_CloseCodexText" xml:space="preserve"><value>A Codex fut (PID {0}). A Codex alkalmazás és a codex CLI munkamenetek nyitva tartják a %USERPROFILE%\.codex mappát, ez meghiúsítja a visszaállítást.
-
-Bezárjam most az összes Codex folyamatot? A nyitott codex terminál-munkamenetek mentetlen munkája elvész. (Igen = zárd be helyettem, Nem = visszaállítás megszakítása)</value></data>
-  <data name="Dlg_CloseCodexTitle" xml:space="preserve"><value>Bezárjuk a Codexet?</value></data>
   <data name="A11y_Navigation" xml:space="preserve"><value>Navigáció</value></data>
   <data name="A11y_Language" xml:space="preserve"><value>Nyelv</value></data>
   <data name="A11y_ScheduledTasks" xml:space="preserve"><value>Ütemezett feladatok</value></data>
@@ -337,7 +327,6 @@ Bezárjam most az összes Codex folyamatot? A nyitott codex terminál-munkamenet
   <data name="Cli_Repair_NothingFound" xml:space="preserve"><value>Nincs mit javítani: nincs más felhasználói profilra mutató útvonal.</value></data>
   <data name="Cli_Repair_Found" xml:space="preserve"><value>{1} útvonal mutat ide: {0} -&gt; átirányítás ide: {2}</value></data>
   <data name="Cli_Repair_NeedYes" xml:space="preserve"><value>hiba: a repair-paths helyben módosít fájlokat; add meg a --yes kapcsolót (vagy --dry-run a puszta ellenőrzéshez).</value></data>
-  <data name="Cli_Repair_CodexRunning" xml:space="preserve"><value>hiba: a Codex fut (PID {0}). Előbb zárd be a Codex alkalmazást és a codex CLI munkameneteket.</value></data>
   <data name="Cli_Repair_Done" xml:space="preserve"><value>javítva: {1} útvonal, {0} fájlban.</value></data>
   <data name="Cli_Repair_Originals" xml:space="preserve"><value>eredeti fájlok mentve ide: {0}</value></data>
   <data name="Restore_RepairTitle" xml:space="preserve"><value>Útvonalak javítása eltérő felhasználónévre történt visszaállítás után</value></data>
@@ -356,4 +345,82 @@ Előbb zárd be a Claude Code munkameneteket. A módosított fájlokról a javí
   <data name="Vm_RepairNothing" xml:space="preserve"><value>Nincs mit javítani – minden útvonal már ide mutat: {0}.</value></data>
   <data name="Vm_RepairDone" xml:space="preserve"><value>Útvonalak javítva: {0}, {1} fájlban. Indítsd újra a Codexet.</value></data>
   <data name="Vm_RepairFailed" xml:space="preserve"><value>Az útvonalak javítása sikertelen: {0}</value></data>
+  <data name="Agent_ClaudeDesktop" xml:space="preserve"><value>Claude Desktop</value></data>
+  <data name="Agent_ClaudeCodeCli" xml:space="preserve"><value>Claude Code (CLI)</value></data>
+  <data name="Agent_CodexDesktop" xml:space="preserve"><value>Codex alkalmazás</value></data>
+  <data name="Agent_CodexCli" xml:space="preserve"><value>Codex CLI</value></data>
+  <data name="Dlg_CloseAgentsTitle" xml:space="preserve"><value>Bezárjuk a futó ügynököket?</value></data>
+  <data name="Dlg_CloseAgentsText" xml:space="preserve"><value>Még fut: {0}.
+
+Ezek nyitva tartják a visszaállítandó mappákat, ami „Hozzáférés megtagadva” hibákat okoz, és kilépéskor visszaírják a régi állapotukat. A háttérfolyamatok is számítanak (a Claude Desktopban futó Claude Code munkamenetek, a Codex app-server). A szolgáltatásaikat (Cowork VM, Codex sandbox) velük együtt leállítom, majd utána újraindítom; ehhez a Windows rendszergazdai jogot kérhet.
+
+Bezárjam őket most? (Igen = zárd be helyettem, Nem = megszakítás)</value></data>
+  <data name="Dlg_BackupAgentsTitle" xml:space="preserve"><value>Bezárjuk az alkalmazásokat a mentés idejére?</value></data>
+  <data name="Dlg_BackupAgentsText" xml:space="preserve"><value>Fut: {0}.
+
+A futó alkalmazás másolás közben is módosítja az adatait, így a mentésből hiányozhatnak a legutóbbi beszélgetések, vagy félig írt fájlok kerülhetnek bele.
+
+Igen = bezárja őket a mentés idejére, utána újraindítja
+Nem = mentés futás közben
+Mégse = nincs mentés
+
+Ha kérdés nélkül mindig be akarod záratni őket, jelöld be az Állapot oldalon a „Mentés közben zárja be a Claude Desktopot és a Codex alkalmazást” lehetőséget.</value></data>
+  <data name="Vm_CancelledAgentsRunning" xml:space="preserve"><value>Megszakítva – még fut: {0}</value></data>
+  <data name="Vm_ClosingAgents" xml:space="preserve"><value>Futó alkalmazások bezárása...</value></data>
+  <data name="Status_CloseAppsDuringBackup" xml:space="preserve"><value>Mentés közben zárja be a Claude Desktopot és a Codex alkalmazást</value></data>
+  <data name="Status_CloseAppsDuringBackupHint" xml:space="preserve"><value>(a háttérfolyamataikkal és szolgáltatásaikkal együtt; utána újraindulnak. Az automatikus mentési feladatra az újratelepítése után érvényes.)</value></data>
+  <data name="Cli_Backup_CloseApps" xml:space="preserve"><value>A mentés idejére bezárja a Claude Desktopot / a Codex alkalmazást a háttérfolyamataikkal és szolgáltatásaikkal együtt, utána újraindítja őket.</value></data>
+  <data name="Cli_Backup_AgentsRunning" xml:space="preserve"><value>figyelmeztetés: mentés közben fut: {0}. A legutóbbi változásaik hiányozhatnak vagy félig írtak lehetnek; a --close-apps kapcsolóval a mentés idejére bezárhatók.</value></data>
+  <data name="Cli_Backup_ClosedApps" xml:space="preserve"><value>A mentés idejére bezárva: {0}</value></data>
+  <data name="Cli_Backup_Reopened" xml:space="preserve"><value>{0} alkalmazás újraindítva.</value></data>
+  <data name="Cli_Repair_AgentsRunning" xml:space="preserve"><value>hiba: még fut: {0}. Előbb zárd be őket.</value></data>
+  <data name="Cli_Schedule_CloseApps" xml:space="preserve"><value>Az ütemezett mentés bezárja a Claude Desktopot / a Codex alkalmazást, és utána újraindítja őket (backup --close-apps).</value></data>
+  <data name="Cli_Discover_Installs" xml:space="preserve"><value>== Telepített alkalmazások ==</value></data>
+  <data name="Cli_Discover_NoInstalls" xml:space="preserve"><value>  (nincs Claude Desktop vagy Codex alkalmazás)</value></data>
+  <data name="Cli_Discover_Running" xml:space="preserve"><value>== Futó ügynök-folyamatok ==</value></data>
+  <data name="Cli_Discover_External" xml:space="preserve"><value>== Külső mappák, amelyektől az ügynökök beállításai függenek (MCP szerverek, hookok, marketplace-ek) ==</value></data>
+  <data name="Cli_Skip" xml:space="preserve"><value>KIHAGY</value></data>
+  <data name="Cli_Discover_ReferencedBy" xml:space="preserve"><value>           használja: {0}</value></data>
+  <data name="Cli_Discover_SkipReason" xml:space="preserve"><value>           nem kerül a mentésbe: {0}</value></data>
+  <data name="Cli_Backup_External" xml:space="preserve"><value>  külső mappa: {0}  (használja: {1})</value></data>
+  <data name="Cli_Backup_ExternalSkipped" xml:space="preserve"><value>megjegyzés: nem került a mentésbe: {0} – {1} (használja: {2})</value></data>
+  <data name="Source_ClaudeDesktop3pAppData" xml:space="preserve"><value>Claude Desktop (külső szolgáltatós profil)</value></data>
+  <data name="Source_ClaudeCodeGlobalConfig" xml:space="preserve"><value>Claude Code globális beállításai (.claude.json)</value></data>
+  <data name="Logs_Refresh" xml:space="preserve"><value>Frissítés</value></data>
+  <data name="Logs_OpenFolder" xml:space="preserve"><value>Naplómappa megnyitása</value></data>
+  <data name="Logs_Copy" xml:space="preserve"><value>Futás másolása</value></data>
+  <data name="Logs_Empty" xml:space="preserve"><value>Még nincs naplóbejegyzés.</value></data>
+  <data name="Logs_Loading" xml:space="preserve"><value>Korábbi futások betöltése...</value></data>
+  <data name="Run_Backup" xml:space="preserve"><value>Mentés</value></data>
+  <data name="Run_Restore" xml:space="preserve"><value>Visszaállítás</value></data>
+  <data name="Run_Repair" xml:space="preserve"><value>Útvonaljavítás</value></data>
+  <data name="Run_App" xml:space="preserve"><value>Alkalmazás tevékenysége</value></data>
+  <data name="Run_OriginScheduled" xml:space="preserve"><value>ütemezett</value></data>
+  <data name="Run_OriginCli" xml:space="preserve"><value>parancssor</value></data>
+  <data name="Run_InProgress" xml:space="preserve"><value>folyamatban</value></data>
+  <data name="Run_StatusRunning" xml:space="preserve"><value>Fut</value></data>
+  <data name="Run_StatusSucceeded" xml:space="preserve"><value>Kész</value></data>
+  <data name="Run_StatusWarnings" xml:space="preserve"><value>Kész, figyelmeztetésekkel</value></data>
+  <data name="Run_StatusFailed" xml:space="preserve"><value>Sikertelen</value></data>
+  <data name="Run_StatusCancelled" xml:space="preserve"><value>Megszakítva</value></data>
+  <data name="Run_StatusInterrupted" xml:space="preserve"><value>Félbeszakadt</value></data>
+  <data name="Run_Warnings" xml:space="preserve"><value>{0} figyelmeztetés</value></data>
+  <data name="Run_Errors" xml:space="preserve"><value>{0} hiba</value></data>
+  <data name="Log_LevelWarning" xml:space="preserve"><value>Figyelmeztetés</value></data>
+  <data name="Log_LevelError" xml:space="preserve"><value>Hiba</value></data>
+  <data name="LogSection_Overview" xml:space="preserve"><value>Áttekintés</value></data>
+  <data name="LogSection_RunningApps" xml:space="preserve"><value>Futó alkalmazások</value></data>
+  <data name="LogSection_InstalledApps" xml:space="preserve"><value>Telepített alkalmazások</value></data>
+  <data name="LogSection_Sources" xml:space="preserve"><value>Ami a mentésbe kerül</value></data>
+  <data name="LogSection_LeftOut" xml:space="preserve"><value>Kihagyva (részletek)</value></data>
+  <data name="LogSection_Links" xml:space="preserve"><value>Hivatkozások (junction, symlink)</value></data>
+  <data name="LogSection_External" xml:space="preserve"><value>Külső mappák</value></data>
+  <data name="LogSection_Databases" xml:space="preserve"><value>Adatbázisok</value></data>
+  <data name="LogSection_Archive" xml:space="preserve"><value>ZIP-archívum</value></data>
+  <data name="LogSection_BackupDetails" xml:space="preserve"><value>A mentés adatai</value></data>
+  <data name="LogSection_VersionCheck" xml:space="preserve"><value>Verzióellenőrzés</value></data>
+  <data name="LogSection_Paths" xml:space="preserve"><value>Útvonalak</value></data>
+  <data name="LogSection_Targets" xml:space="preserve"><value>Visszaállított mappák</value></data>
+  <data name="LogSection_ProvideHere" xml:space="preserve"><value>Ezen a gépen kell pótolni</value></data>
+  <data name="LogSection_Retention" xml:space="preserve"><value>Megőrzés</value></data>
 </root>

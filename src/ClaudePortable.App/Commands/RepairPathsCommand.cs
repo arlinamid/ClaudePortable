@@ -58,10 +58,10 @@ public static class RepairPathsCommand
                 Environment.ExitCode = 1;
                 return;
             }
-            var codex = System.Diagnostics.Process.GetProcessesByName("Codex");
-            if (codex.Length > 0)
+            var running = AgentProcesses.Find(AgentProcesses.KindsToClose(null, AgentOperation.RepairPaths));
+            if (running.Count > 0)
             {
-                Console.Error.WriteLine(Loc.F("Cli_Repair_CodexRunning", string.Join(", ", codex.Select(p => p.Id))));
+                Console.Error.WriteLine(Loc.F("Cli_Repair_AgentsRunning", AgentLabels.Summarize(running)));
                 Environment.ExitCode = 2;
                 return;
             }

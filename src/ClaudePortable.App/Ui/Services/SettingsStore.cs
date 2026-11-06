@@ -15,6 +15,14 @@ public sealed record AppSettings
     /// </summary>
     [JsonPropertyName("backupGroups")]
     public List<string>? BackupGroups { get; init; }
+
+    /// <summary>
+    /// Close Claude Desktop / the Codex app for a backup and reopen them
+    /// afterwards (Backup now, and the scheduled task via --close-apps).
+    /// Null = not chosen yet, which means yes.
+    /// </summary>
+    [JsonPropertyName("closeAppsDuringBackup")]
+    public bool? CloseAppsDuringBackup { get; init; }
 }
 
 /// <summary>
@@ -57,6 +65,9 @@ public sealed class SettingsStore
         var json = JsonSerializer.Serialize(settings, SettingsStoreJsonContext.Default.AppSettings);
         File.WriteAllText(ConfigPath, json);
     }
+
+    public void SaveCloseAppsDuringBackup(bool value)
+        => Save(Load() with { CloseAppsDuringBackup = value });
 
     public void SaveLanguage(string language)
         => Save(Load() with { Language = language });

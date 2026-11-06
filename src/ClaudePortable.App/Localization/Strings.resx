@@ -80,7 +80,7 @@
   <data name="Restore_IgnoreVersionMismatchHint" xml:space="preserve"><value>(skip the major-version block; chat-history schema may differ)</value></data>
 
   <!-- Logs page -->
-  <data name="Logs_Caption" xml:space="preserve"><value>Most recent 500 lines from this session. Logs persist in memory only — restart clears them.</value></data>
+  <data name="Logs_Caption" xml:space="preserve"><value>Every backup, restore and path repair - also the scheduled and command-line ones - as a card. Open a card for its sections; sections with warnings open by themselves. The full text log is in the log folder.</value></data>
 
   <!-- Schedule page -->
   <data name="Schedule_Caption" xml:space="preserve"><value>Windows scheduled tasks visible from this machine. AgentPortable-managed entries are highlighted in green; foreign tasks that touch Claude, Cowork or Codex paths (like a hand-written backup PowerShell script) are highlighted in orange. Use Refresh after creating or removing a task elsewhere.</value></data>
@@ -120,7 +120,6 @@
   <data name="Vm_BackupFailed" xml:space="preserve"><value>Backup failed: {0}</value></data>
   <data name="Vm_Restoring" xml:space="preserve"><value>Restoring...</value></data>
   <data name="Vm_StartingRestore" xml:space="preserve"><value>Starting restore</value></data>
-  <data name="Vm_RestoreCancelledRunning" xml:space="preserve"><value>Restore cancelled - Claude Desktop still running.</value></data>
   <data name="Vm_RestoreCompleteChecklist" xml:space="preserve"><value>Restore complete. Checklist: {0}</value></data>
   <data name="Vm_RestoreCompleteWarnings" xml:space="preserve"><value>Restore complete with {0} warning(s). See Logs tab.</value></data>
   <data name="Vm_RestoreFailed" xml:space="preserve"><value>Restore failed: {0}</value></data>
@@ -150,10 +149,6 @@ Existing Claude data will be moved to &lt;folder&gt;_backup_&lt;timestamp&gt; wh
 
 Proceed?</value></data>
   <data name="Dlg_ConfirmRestoreTitle" xml:space="preserve"><value>Confirm restore</value></data>
-  <data name="Dlg_CloseClaudeText" xml:space="preserve"><value>Claude Desktop is running (PID {0}). Its open file handles will cause 'Access denied' errors during restore.
-
-Close Claude Desktop now? (Yes = close for me, No = cancel restore)</value></data>
-  <data name="Dlg_CloseClaudeTitle" xml:space="preserve"><value>Close Claude Desktop?</value></data>
 
   <!-- Scheduled tasks view model -->
   <data name="Sched_ClickRefresh" xml:space="preserve"><value>Click Refresh to load scheduled tasks.</value></data>
@@ -314,11 +309,6 @@ This is permanent. To re-create it you would have to re-install via AgentPortabl
   <data name="Restore_WhatToRestoreHint" xml:space="preserve"><value>Only the ticked parts are restored; everything else on this machine is left untouched. Parts missing from the backup are skipped.</value></data>
   <data name="Vm_NothingSelected" xml:space="preserve"><value>Nothing selected - tick at least one item.</value></data>
   <data name="Vm_RestoreNothingInBackup" xml:space="preserve"><value>The selected backup contains none of the ticked items.</value></data>
-  <data name="Vm_RestoreCancelledRunningCodex" xml:space="preserve"><value>Restore cancelled - Codex still running.</value></data>
-  <data name="Dlg_CloseCodexText" xml:space="preserve"><value>Codex is running (PID {0}). The Codex app and codex CLI sessions keep %USERPROFILE%\.codex open, which breaks the restore.
-
-Close all Codex processes now? Unsaved work in open codex terminal sessions is lost. (Yes = close for me, No = cancel restore)</value></data>
-  <data name="Dlg_CloseCodexTitle" xml:space="preserve"><value>Close Codex?</value></data>
   <data name="A11y_Navigation" xml:space="preserve"><value>Navigation</value></data>
   <data name="A11y_Language" xml:space="preserve"><value>Language</value></data>
   <data name="A11y_ScheduledTasks" xml:space="preserve"><value>Scheduled tasks</value></data>
@@ -337,7 +327,6 @@ Close all Codex processes now? Unsaved work in open codex terminal sessions is l
   <data name="Cli_Repair_NothingFound" xml:space="preserve"><value>Nothing to repair: no paths into other user profiles found.</value></data>
   <data name="Cli_Repair_Found" xml:space="preserve"><value>found {1} path(s) into {0} -&gt; will point to {2}</value></data>
   <data name="Cli_Repair_NeedYes" xml:space="preserve"><value>error: repair-paths changes files in place; add --yes (or --dry-run to only look).</value></data>
-  <data name="Cli_Repair_CodexRunning" xml:space="preserve"><value>error: Codex is running (PID {0}). Close the Codex app and codex CLI sessions first.</value></data>
   <data name="Cli_Repair_Done" xml:space="preserve"><value>repaired: {1} path(s) in {0} file(s).</value></data>
   <data name="Cli_Repair_Originals" xml:space="preserve"><value>originals saved in: {0}</value></data>
   <data name="Restore_RepairTitle" xml:space="preserve"><value>Repair paths after a restore onto a different user name</value></data>
@@ -356,4 +345,82 @@ Close Claude Code sessions first. Changed files are copied aside before the repa
   <data name="Vm_RepairNothing" xml:space="preserve"><value>Nothing to repair - all paths already point to {0}.</value></data>
   <data name="Vm_RepairDone" xml:space="preserve"><value>Paths repaired: {0} in {1} file(s). Restart Codex.</value></data>
   <data name="Vm_RepairFailed" xml:space="preserve"><value>Path repair failed: {0}</value></data>
+  <data name="Agent_ClaudeDesktop" xml:space="preserve"><value>Claude Desktop</value></data>
+  <data name="Agent_ClaudeCodeCli" xml:space="preserve"><value>Claude Code (CLI)</value></data>
+  <data name="Agent_CodexDesktop" xml:space="preserve"><value>Codex app</value></data>
+  <data name="Agent_CodexCli" xml:space="preserve"><value>Codex CLI</value></data>
+  <data name="Dlg_CloseAgentsTitle" xml:space="preserve"><value>Close running agents?</value></data>
+  <data name="Dlg_CloseAgentsText" xml:space="preserve"><value>Still running: {0}.
+
+They keep the folders being restored open, which causes 'Access denied' errors, and they write their old state back when they exit. Background helpers count too (Claude Code sessions inside Claude Desktop, the Codex app-server). Their services (Cowork VM, Codex sandbox) are stopped with them and started again afterwards; Windows may ask for administrator rights for that.
+
+Close them now? (Yes = close for me, No = cancel)</value></data>
+  <data name="Dlg_BackupAgentsTitle" xml:space="preserve"><value>Close apps during the backup?</value></data>
+  <data name="Dlg_BackupAgentsText" xml:space="preserve"><value>Running: {0}.
+
+A running app keeps changing its data while it is copied, so the backup can miss your latest chats or contain half-written files.
+
+Yes = close them for the backup and reopen them afterwards
+No = back up while they run
+Cancel = do not back up
+
+To always close them without asking, tick 'Close Claude Desktop and the Codex app during the backup' on the Status page.</value></data>
+  <data name="Vm_CancelledAgentsRunning" xml:space="preserve"><value>Cancelled - still running: {0}</value></data>
+  <data name="Vm_ClosingAgents" xml:space="preserve"><value>Closing running apps...</value></data>
+  <data name="Status_CloseAppsDuringBackup" xml:space="preserve"><value>Close Claude Desktop and the Codex app during the backup</value></data>
+  <data name="Status_CloseAppsDuringBackupHint" xml:space="preserve"><value>(with their background helpers and services; reopened afterwards. Also applies to the automatic backup task once it is re-installed.)</value></data>
+  <data name="Cli_Backup_CloseApps" xml:space="preserve"><value>Close Claude Desktop / the Codex app with their background helpers and services for the backup, and reopen them afterwards.</value></data>
+  <data name="Cli_Backup_AgentsRunning" xml:space="preserve"><value>warning: running during the backup: {0}. Their latest changes can be missing or half-written; pass --close-apps to close them for the backup.</value></data>
+  <data name="Cli_Backup_ClosedApps" xml:space="preserve"><value>Closed for the backup: {0}</value></data>
+  <data name="Cli_Backup_Reopened" xml:space="preserve"><value>Reopened {0} app(s).</value></data>
+  <data name="Cli_Repair_AgentsRunning" xml:space="preserve"><value>error: still running: {0}. Close them first.</value></data>
+  <data name="Cli_Schedule_CloseApps" xml:space="preserve"><value>Let the scheduled backup close Claude Desktop / the Codex app and reopen them afterwards (backup --close-apps).</value></data>
+  <data name="Cli_Discover_Installs" xml:space="preserve"><value>== Installed apps ==</value></data>
+  <data name="Cli_Discover_NoInstalls" xml:space="preserve"><value>  (no Claude Desktop or Codex app found)</value></data>
+  <data name="Cli_Discover_Running" xml:space="preserve"><value>== Running agent processes ==</value></data>
+  <data name="Cli_Discover_External" xml:space="preserve"><value>== External folders the agents' settings depend on (MCP servers, hooks, marketplaces) ==</value></data>
+  <data name="Cli_Skip" xml:space="preserve"><value>SKIP</value></data>
+  <data name="Cli_Discover_ReferencedBy" xml:space="preserve"><value>           used by: {0}</value></data>
+  <data name="Cli_Discover_SkipReason" xml:space="preserve"><value>           not backed up: {0}</value></data>
+  <data name="Cli_Backup_External" xml:space="preserve"><value>  external folder: {0}  (used by {1})</value></data>
+  <data name="Cli_Backup_ExternalSkipped" xml:space="preserve"><value>note: not backed up: {0} - {1} (used by {2})</value></data>
+  <data name="Source_ClaudeDesktop3pAppData" xml:space="preserve"><value>Claude Desktop (third-party inference profile)</value></data>
+  <data name="Source_ClaudeCodeGlobalConfig" xml:space="preserve"><value>Claude Code global settings (.claude.json)</value></data>
+  <data name="Logs_Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Logs_OpenFolder" xml:space="preserve"><value>Open log folder</value></data>
+  <data name="Logs_Copy" xml:space="preserve"><value>Copy this run</value></data>
+  <data name="Logs_Empty" xml:space="preserve"><value>Nothing logged yet.</value></data>
+  <data name="Logs_Loading" xml:space="preserve"><value>Loading earlier runs...</value></data>
+  <data name="Run_Backup" xml:space="preserve"><value>Backup</value></data>
+  <data name="Run_Restore" xml:space="preserve"><value>Restore</value></data>
+  <data name="Run_Repair" xml:space="preserve"><value>Path repair</value></data>
+  <data name="Run_App" xml:space="preserve"><value>App activity</value></data>
+  <data name="Run_OriginScheduled" xml:space="preserve"><value>scheduled</value></data>
+  <data name="Run_OriginCli" xml:space="preserve"><value>command line</value></data>
+  <data name="Run_InProgress" xml:space="preserve"><value>in progress</value></data>
+  <data name="Run_StatusRunning" xml:space="preserve"><value>Running</value></data>
+  <data name="Run_StatusSucceeded" xml:space="preserve"><value>Completed</value></data>
+  <data name="Run_StatusWarnings" xml:space="preserve"><value>Completed with warnings</value></data>
+  <data name="Run_StatusFailed" xml:space="preserve"><value>Failed</value></data>
+  <data name="Run_StatusCancelled" xml:space="preserve"><value>Cancelled</value></data>
+  <data name="Run_StatusInterrupted" xml:space="preserve"><value>Interrupted</value></data>
+  <data name="Run_Warnings" xml:space="preserve"><value>{0} warning(s)</value></data>
+  <data name="Run_Errors" xml:space="preserve"><value>{0} error(s)</value></data>
+  <data name="Log_LevelWarning" xml:space="preserve"><value>Warning</value></data>
+  <data name="Log_LevelError" xml:space="preserve"><value>Error</value></data>
+  <data name="LogSection_Overview" xml:space="preserve"><value>Overview</value></data>
+  <data name="LogSection_RunningApps" xml:space="preserve"><value>Running apps</value></data>
+  <data name="LogSection_InstalledApps" xml:space="preserve"><value>Installed apps</value></data>
+  <data name="LogSection_Sources" xml:space="preserve"><value>What is backed up</value></data>
+  <data name="LogSection_LeftOut" xml:space="preserve"><value>Left out (details)</value></data>
+  <data name="LogSection_Links" xml:space="preserve"><value>Links (junctions, symlinks)</value></data>
+  <data name="LogSection_External" xml:space="preserve"><value>External folders</value></data>
+  <data name="LogSection_Databases" xml:space="preserve"><value>Databases</value></data>
+  <data name="LogSection_Archive" xml:space="preserve"><value>ZIP archive</value></data>
+  <data name="LogSection_BackupDetails" xml:space="preserve"><value>Backup details</value></data>
+  <data name="LogSection_VersionCheck" xml:space="preserve"><value>Version check</value></data>
+  <data name="LogSection_Paths" xml:space="preserve"><value>Paths</value></data>
+  <data name="LogSection_Targets" xml:space="preserve"><value>Restored folders</value></data>
+  <data name="LogSection_ProvideHere" xml:space="preserve"><value>Provide on this PC</value></data>
+  <data name="LogSection_Retention" xml:space="preserve"><value>Retention</value></data>
 </root>

@@ -30,14 +30,15 @@ public static class ScheduleCommand
         var timeOption = new Option<string>(new[] { "--at" }, () => "23:00", Loc.T("Cli_Schedule_At"));
         var nameOption = new Option<string>(new[] { "--name" }, () => "ClaudePortable-Daily", Loc.T("Cli_Schedule_Name"));
         var noInstallOption = new Option<bool>(new[] { "--no-install" }, () => false, Loc.T("Cli_Schedule_NoInstall"));
+        var closeAppsOption = new Option<bool>(new[] { "--close-apps" }, () => false, Loc.T("Cli_Schedule_CloseApps"));
         var includeOption = GroupOptions.CreateInclude();
         var skipOption = GroupOptions.CreateSkip();
         var install = new Command("install", Loc.T("Cli_Schedule_Install_Desc"))
         {
-            folderOption, timeOption, nameOption, noInstallOption, includeOption, skipOption,
+            folderOption, timeOption, nameOption, noInstallOption, includeOption, skipOption, closeAppsOption,
         };
 
-        install.SetHandler(async (folder, atRaw, taskName, noInstall, include, skip) =>
+        install.SetHandler(async (folder, atRaw, taskName, noInstall, include, skip, closeApps) =>
         {
             if (!GroupOptions.TryResolve(include, skip, out var groups))
             {
@@ -56,7 +57,7 @@ public static class ScheduleCommand
             var spec = new ScheduleSpec(
                 TaskName: taskName,
                 ExecutablePath: exe,
-                Arguments: ["backup", "--to", folder.FullName, .. GroupOptions.ToArguments(groups)],
+                Arguments: BackupArguments(folder.FullName, groups, closeApps),
                 DailyStart: at,
                 Description: Loc.F("Cli_Schedule_TaskDescription", folder.FullName));
 
@@ -84,7 +85,7 @@ public static class ScheduleCommand
                 return;
             }
             Console.WriteLine(Loc.F("Cli_Schedule_Installed", taskName, at.ToString("HH:mm", CultureInfo.InvariantCulture)));
-        }, folderOption, timeOption, nameOption, noInstallOption, includeOption, skipOption);
+        }, folderOption, timeOption, nameOption, noInstallOption, includeOption, skipOption, closeAppsOption);
         return install;
     }
 
@@ -305,13 +306,14 @@ public static class ScheduleCommand
         var folderOption = new Option<DirectoryInfo>(new[] { "--folder", "-f" }, Loc.T("Cli_Schedule_Folder")) { IsRequired = true };
         var timeOption = new Option<string>(new[] { "--at" }, () => "23:00", Loc.T("Cli_Schedule_At"));
         var nameOption = new Option<string>(new[] { "--name" }, () => "ClaudePortable-Daily", Loc.T("Cli_Schedule_Name"));
+        var closeAppsOption = new Option<bool>(new[] { "--close-apps" }, () => false, Loc.T("Cli_Schedule_CloseApps"));
         var includeOption = GroupOptions.CreateInclude();
         var skipOption = GroupOptions.CreateSkip();
         var emit = new Command("emit", Loc.T("Cli_Schedule_Emit_Desc"))
         {
-            folderOption, timeOption, nameOption, includeOption, skipOption,
+            folderOption, timeOption, nameOption, includeOption, skipOption, closeAppsOption,
         };
-        emit.SetHandler((folder, atRaw, taskName, include, skip) =>
+        emit.SetHandler((folder, atRaw, taskName, include, skip, closeApps) =>
         {
             if (!GroupOptions.TryResolve(include, skip, out var groups))
             {
@@ -328,11 +330,15 @@ public static class ScheduleCommand
             var spec = new ScheduleSpec(
                 TaskName: taskName,
                 ExecutablePath: exe,
-                Arguments: ["backup", "--to", folder.FullName, .. GroupOptions.ToArguments(groups)],
+                Arguments: BackupArguments(folder.FullName, groups, closeApps),
                 DailyStart: at,
                 Description: Loc.F("Cli_Schedule_TaskDescription", folder.FullName));
             Console.WriteLine(TaskSchedulerEmitter.ToXml(spec, DateTimeOffset.UtcNow));
-        }, folderOption, timeOption, nameOption, includeOption, skipOption);
+        }, folderOption, timeOption, nameOption, includeOption, skipOption, closeAppsOption);
         return emit;
     }
+
+    /// <summary>Arguments of the scheduled "backup" call (shared with the GUI's Schedule page).</summary>
+    public static IReadOnlyList<string> BackupArguments(string folder, IReadOnlySet<string>? groups, bool closeApps)
+        => ["backup", "--to", folder, .. GroupOptions.ToArguments(groups), .. (closeApps ? new[] { "--close-apps" } : [])];
 }

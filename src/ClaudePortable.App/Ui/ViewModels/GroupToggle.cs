@@ -74,7 +74,9 @@ public static class GroupLabels
     {
         "claudeDesktopAppData" => Loc.T("Source_ClaudeDesktopAppData"),
         "claudeDesktopLocalAppData" => Loc.T("Source_ClaudeDesktopLocalAppData"),
+        "claudeDesktop3pAppData" => Loc.T("Source_ClaudeDesktop3pAppData"),
         "claudeCodeUserProfile" => Loc.T("Source_ClaudeCode"),
+        "claudeCodeGlobalConfig" => Loc.T("Source_ClaudeCodeGlobalConfig"),
         "codexUserProfile" => Loc.T("Source_Codex"),
         "codexDesktopAppData" => Loc.T("Source_CodexApp"),
         "agentsUserProfile" => Loc.T("Source_Agents"),
